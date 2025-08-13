@@ -1,12 +1,7 @@
-use axum::{Router, routing::get};
 use dotenvy::dotenv;
+use rust_axum_rest_api::create_app;
 use sqlx::postgres::PgPoolOptions;
-use tracing::{Level, info};
-
-mod handlers;
-mod models;
-
-use handlers::*;
+use tracing::{info, Level};
 
 #[tokio::main]
 async fn main() -> Result<(), sqlx::Error> {
@@ -18,22 +13,14 @@ async fn main() -> Result<(), sqlx::Error> {
     let pool = PgPoolOptions::new().connect(&url).await?;
     info!("Connected to the database!");
 
-    let app = Router::new()
-        .route("/", get(root))
-        .route("/warehouses", get(get_warehouses))
-        .with_state(pool);
+    let app = create_app(pool).await;
 
-    // run our app with hyper, listening globally on port 5000
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:5000")
+    // run our app with hyper, listening globally on port 8080
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:8080")
         .await
         .unwrap();
-    info!("Server is running on http://127.0.0.1:5000");
+    info!("Server is running on http://127.0.0.1:8080");
     axum::serve(listener, app).await.unwrap();
 
     Ok(())
-}
-
-// handler for GET /
-async fn root() -> &'static str {
-    "Hello, world!"
 }

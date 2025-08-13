@@ -5,8 +5,6 @@ sysbench ./tpcc.lua \
   --pgsql-password=${POSTGRES_PASSWORD} \
   --pgsql-user=${POSTGRES_USER} \
   --pgsql-db=${POSTGRES_DB} \
-  --tables=1 \
   --scale=10 \
-  --threads=8 \
   --db-driver=pgsql \
   prepare

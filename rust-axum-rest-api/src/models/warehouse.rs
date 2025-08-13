@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use sqlx::types::BigDecimal;
 
-#[derive(Serialize, Deserialize, sqlx::FromRow)]
+#[derive(Serialize, Deserialize, sqlx::FromRow, Debug, Clone)]
 pub struct Warehouse {
     pub w_id: i16,
     pub w_name: Option<String>,
