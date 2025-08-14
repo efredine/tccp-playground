@@ -70,7 +70,7 @@ export default function () {
       break;
   }
   
-  sleep(1);
+  // No sleep - run transactions as fast as possible (sysbench equivalent)
 }
 
 function runNewOrder() {

@@ -60,6 +60,9 @@ k6 run --duration 30s --vus 5 delivery_test.js
 
 ### Examples
 ```bash
+# Sysbench TPC-C equivalent (recommended baseline)
+k6 run --duration 5m --vus 8 -e WAREHOUSES=10 full_tpcc_test.js
+
 # High-load stress test
 k6 run --duration 5m --vus 100 full_tpcc_test.js
 
@@ -159,6 +162,38 @@ k6 run --quiet \
   --threshold http_req_failed="rate<0.05" \
   full_tpcc_test.js
 ```
+
+## ⚖️ Sysbench Comparison
+
+### Equivalent Configurations
+
+**Standard Configuration** (`sysbench_equivalent.sh`):
+| Parameter | Sysbench | K6 Equivalent |
+|-----------|----------|---------------|
+| Warehouses | `--scale=10` | `-e WAREHOUSES=10` |
+| Duration | `--time=300` (5 min) | `--duration 5m` |
+| Concurrency | `--threads=8` | `--vus 8` |
+
+### Key Differences
+- **Sysbench**: Direct database access, Lua-based
+- **K6**: HTTP REST API, JavaScript-based  
+- **Network Overhead**: K6 includes HTTP/JSON serialization costs
+- **Transaction Logic**: Both follow TPC-C specification patterns
+
+### Performance Expectations
+
+**Standard Config (with think time)**:
+- **TPS**: ~8-10 (much lower due to 1-second think time)
+- **CPU Load**: Low - simulates realistic user behavior
+- **Use Case**: User experience testing, realistic load patterns
+
+**High-Load Config (no think time)**:  
+- **TPS**: ~200-600+ (targeting sysbench's 666 TPS)
+- **CPU Load**: High - matches sysbench intensity
+- **Latency**: ~20-60ms (higher than sysbench's 12ms due to HTTP overhead)
+- **Use Case**: Maximum throughput testing, database stress testing
+
+**Error Patterns**: Both should show similar error rates (~1% invalid items)
 
 ## 📝 Test Development
 
