@@ -61,12 +61,68 @@
 
 **Completed Extras**:
 - ✅ **K6 Load Testing Suite**: Complete benchmark scripts with comprehensive documentation
-- ✅ **Performance Validation**: 100% success rate, ~40ms response times, 5 req/sec baseline
-- ✅ **Documentation**: Full README with examples, troubleshooting, and advanced usage
+- ✅ **Performance Validation**: 648 TPS with 12.23ms avg latency (97.4% of direct DB performance)
+- ✅ **Comprehensive Analysis**: Detailed performance comparison in `results/m1-pro-axum/analysis.md`
 
-**Possible Next Steps**:
-- Performance optimizations (connection pooling, prepared statements, indexing)
-- Advanced TPC-C features (customer lookup by name, multi-district delivery)  
+### **🎯 Next Major Milestone: TPC-C Management UI**
+
+**Target**: Build a production-quality web interface for TPC-C order management
+
+**Technology Stack**:
+- **Frontend**: Vite + React + TypeScript
+- **State Management**: TanStack Query (React Query)
+- **Routing**: TanStack Router  
+- **UI Components**: Material-UI with default styling
+- **API Integration**: Existing Rust Axum REST API
+
+**Planned UI Pages**:
+
+1. **New Order Entry** (`/new-order`)
+   - Form with warehouse/district/customer selection
+   - Dynamic order lines with item search and quantity
+   - Real-time price calculation and validation
+   - Success feedback with generated order ID
+
+2. **Orders List** (`/orders`)
+   - Filterable table (warehouse, district, customer, status, date range)
+   - Order status indicators (New/Delivered)
+   - Sortable columns with pagination
+   - Click-to-detail navigation
+
+3. **Order Detail** (`/orders/:id`)
+   - Complete order information display
+   - Customer and warehouse details
+   - Itemized order lines with pricing breakdown
+   - Carrier assignment for new orders
+   - Delivery processing capabilities
+
+4. **Dashboard** (Optional)
+   - High-level metrics and analytics
+   - Order volume trends
+   - Warehouse performance indicators
+
+**Required New API Endpoints**:
+- `GET /items` - Item search/autocomplete
+- `GET /customers` - Customer search by warehouse/district  
+- `GET /orders` - Enhanced orders list with filtering
+- `GET /orders/:id` - Single order detail
+- `GET /districts` - Districts by warehouse
+
+**Development Phases**:
+1. **Phase 1**: New Order form (highest value feature)
+2. **Phase 2**: Orders list with filtering
+3. **Phase 3**: Order detail view and carrier assignment
+4. **Phase 4**: Dashboard and analytics
+
+**Business Value**:
+- Practical demonstration of TPC-C implementation
+- Production-useful order management interface
+- Complete full-stack showcase (API + UI)
+- Real-world application of high-performance backend
+
+**Other Possible Future Steps**:
+- Performance optimizations (connection pooling, prepared statements)
+- Advanced TPC-C features (customer lookup by name, multi-district delivery)
 - Monitoring & observability (metrics, tracing, health checks)
 - Deployment & scaling (Docker, Kubernetes, load balancing)
 

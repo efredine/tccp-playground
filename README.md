@@ -1,2 +1,2 @@
-# tccp-playground
-Repository for evaluating WebApp frameworks using tccp
+# TPC-C Playground
+Repository for evaluating WebApp frameworks using TPC-C
