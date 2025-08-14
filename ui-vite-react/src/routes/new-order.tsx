@@ -7,6 +7,7 @@ import {
   Grid
 } from '@mui/material';
 import { WarehouseSelect } from '../components/WarehouseSelect';
+import { DistrictSelect } from '../components/DistrictSelect';
 
 export const Route = createFileRoute('/new-order')({
   component: NewOrderPage,
@@ -14,6 +15,13 @@ export const Route = createFileRoute('/new-order')({
 
 function NewOrderPage() {
   const [selectedWarehouse, setSelectedWarehouse] = useState<number>();
+  const [selectedDistrict, setSelectedDistrict] = useState<number>();
+
+  // Reset district when warehouse changes
+  const handleWarehouseChange = (warehouseId: number) => {
+    setSelectedWarehouse(warehouseId);
+    setSelectedDistrict(undefined); // Clear district selection
+  };
 
   return (
     <Box>
@@ -30,17 +38,28 @@ function NewOrderPage() {
           <Grid size={{ xs: 12, md: 4 }}>
             <WarehouseSelect
               value={selectedWarehouse}
-              onChange={setSelectedWarehouse}
+              onChange={handleWarehouseChange}
               required
               helperText="Select the warehouse for this order"
             />
           </Grid>
+          <Grid size={{ xs: 12, md: 4 }}>
+            <DistrictSelect
+              warehouseId={selectedWarehouse}
+              value={selectedDistrict}
+              onChange={setSelectedDistrict}
+              required
+              helperText="Select the district within the warehouse"
+            />
+          </Grid>
         </Grid>
 
-        {selectedWarehouse && (
+        {(selectedWarehouse || selectedDistrict) && (
           <Box sx={{ mt: 3, p: 2, bgcolor: 'primary.50', borderRadius: 1 }}>
             <Typography variant="body2" color="primary.main">
-              Selected Warehouse ID: {selectedWarehouse}
+              {selectedWarehouse && `Selected Warehouse: ${selectedWarehouse}`}
+              {selectedWarehouse && selectedDistrict && ' | '}
+              {selectedDistrict && `District: ${selectedDistrict}`}
             </Typography>
           </Box>
         )}
