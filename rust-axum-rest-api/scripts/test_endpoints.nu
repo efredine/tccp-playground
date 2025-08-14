@@ -89,4 +89,113 @@ try {
     print "HTTP Error (expected) - customer not found"
 }
 
+# Test 9: New Order endpoint - valid request with single item
+print "\n\n9. Testing new-order endpoint with valid single item request:"
+try {
+    let new_order_payload = {
+        "warehouse_id": 1,
+        "district_id": 1,
+        "customer_id": 1,
+        "order_lines": [
+            {
+                "item_id": 1,
+                "supply_warehouse_id": 1,
+                "quantity": 5
+            }
+        ]
+    }
+    let response = http post $"($base_url)/new-order" --content-type "application/json" ($new_order_payload | to json)
+    print ($response | to json --indent 2)
+} catch {
+    print "Request failed"
+}
+
+# Test 10: New Order endpoint - valid request with multiple items
+print "\n\n10. Testing new-order endpoint with valid multi-item request:"
+try {
+    let new_order_payload = {
+        "warehouse_id": 1,
+        "district_id": 1,
+        "customer_id": 2,
+        "order_lines": [
+            {
+                "item_id": 1,
+                "supply_warehouse_id": 1,
+                "quantity": 3
+            },
+            {
+                "item_id": 2,
+                "supply_warehouse_id": 1,
+                "quantity": 2
+            },
+            {
+                "item_id": 5,
+                "supply_warehouse_id": 2,
+                "quantity": 1
+            }
+        ]
+    }
+    let response = http post $"($base_url)/new-order" --content-type "application/json" ($new_order_payload | to json)
+    print ($response | to json --indent 2)
+} catch {
+    print "Request failed"
+}
+
+# Test 11: New Order endpoint - invalid request with no order lines (should return 400)
+print "\n\n11. Testing new-order endpoint with empty order lines (expect 400):"
+try {
+    let new_order_payload = {
+        "warehouse_id": 1,
+        "district_id": 1,
+        "customer_id": 1,
+        "order_lines": []
+    }
+    let response = http post $"($base_url)/new-order" --content-type "application/json" ($new_order_payload | to json)
+    print ($response | to json --indent 2)
+} catch {
+    print "HTTP Error (expected) - empty order lines"
+}
+
+# Test 12: New Order endpoint - invalid request with non-existent item (should return 404)
+print "\n\n12. Testing new-order endpoint with non-existent item (expect 404):"
+try {
+    let new_order_payload = {
+        "warehouse_id": 1,
+        "district_id": 1,
+        "customer_id": 1,
+        "order_lines": [
+            {
+                "item_id": 999999,
+                "supply_warehouse_id": 1,
+                "quantity": 1
+            }
+        ]
+    }
+    let response = http post $"($base_url)/new-order" --content-type "application/json" ($new_order_payload | to json)
+    print ($response | to json --indent 2)
+} catch {
+    print "HTTP Error (expected) - item not found"
+}
+
+# Test 13: New Order endpoint - invalid request with non-existent customer (should return 404)
+print "\n\n13. Testing new-order endpoint with non-existent customer (expect 404):"
+try {
+    let new_order_payload = {
+        "warehouse_id": 1,
+        "district_id": 1,
+        "customer_id": 999999,
+        "order_lines": [
+            {
+                "item_id": 1,
+                "supply_warehouse_id": 1,
+                "quantity": 1
+            }
+        ]
+    }
+    let response = http post $"($base_url)/new-order" --content-type "application/json" ($new_order_payload | to json)
+    print ($response | to json --indent 2)
+} catch {
+    print "HTTP Error (expected) - customer not found"
+}
+
 print "\n\nTesting complete!"
