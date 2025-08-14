@@ -288,4 +288,56 @@ try {
     print "HTTP Error (expected) - warehouse not found"
 }
 
+# Test 20: Delivery endpoint - valid delivery request
+print "\n\n20. Testing delivery endpoint with valid delivery request:"
+try {
+    let delivery_payload = {
+        "warehouse_id": 1,
+        "district_id": 1
+    }
+    let response = http post $"($base_url)/delivery" --content-type "application/json" ($delivery_payload | to json)
+    print ($response | to json --indent 2)
+} catch {
+    print "Request failed"
+}
+
+# Test 21: Delivery endpoint - different district
+print "\n\n21. Testing delivery endpoint with different district:"
+try {
+    let delivery_payload = {
+        "warehouse_id": 1,
+        "district_id": 2
+    }
+    let response = http post $"($base_url)/delivery" --content-type "application/json" ($delivery_payload | to json)
+    print ($response | to json --indent 2)
+} catch {
+    print "Request failed"
+}
+
+# Test 22: Delivery endpoint - different warehouse
+print "\n\n22. Testing delivery endpoint with different warehouse:"
+try {
+    let delivery_payload = {
+        "warehouse_id": 2,
+        "district_id": 1
+    }
+    let response = http post $"($base_url)/delivery" --content-type "application/json" ($delivery_payload | to json)
+    print ($response | to json --indent 2)
+} catch {
+    print "Request failed"
+}
+
+# Test 23: Delivery endpoint - non-existent warehouse (should still return 200 with 0 deliveries)
+print "\n\n23. Testing delivery endpoint with non-existent warehouse:"
+try {
+    let delivery_payload = {
+        "warehouse_id": 999,
+        "district_id": 1
+    }
+    let response = http post $"($base_url)/delivery" --content-type "application/json" ($delivery_payload | to json)
+    print ($response | to json --indent 2)
+} catch {
+    print "Request failed"
+}
+
 print "\n\nTesting complete!"
