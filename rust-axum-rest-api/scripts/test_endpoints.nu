@@ -53,4 +53,40 @@ try {
     print "Request failed"
 }
 
+# Test 5: Order status endpoint with valid parameters
+print "\n\n5. Testing order-status endpoint with valid parameters:"
+try {
+    let response = http get $"($base_url)/order-status?warehouse_id=1&district_id=1&customer_id=1"
+    print ($response | to json --indent 2)
+} catch {
+    print "Request failed"
+}
+
+# Test 6: Order status endpoint with different customer (to test variation)
+print "\n\n6. Testing order-status endpoint with customer_id=100:"
+try {
+    let response = http get $"($base_url)/order-status?warehouse_id=1&district_id=1&customer_id=100"
+    print ($response | to json --indent 2)
+} catch {
+    print "Request failed"
+}
+
+# Test 7: Order status endpoint without parameters (should return 400)
+print "\n\n7. Testing order-status endpoint without parameters (expect 400):"
+try {
+    let response = http get $"($base_url)/order-status"
+    print ($response | to json --indent 2)
+} catch {
+    print "HTTP Error (expected) - missing required query parameters"
+}
+
+# Test 8: Order status endpoint with non-existent customer (should return 404)
+print "\n\n8. Testing order-status endpoint with non-existent customer (expect 404):"
+try {
+    let response = http get $"($base_url)/order-status?warehouse_id=999&district_id=999&customer_id=999999"
+    print ($response | to json --indent 2)
+} catch {
+    print "HTTP Error (expected) - customer not found"
+}
+
 print "\n\nTesting complete!"
