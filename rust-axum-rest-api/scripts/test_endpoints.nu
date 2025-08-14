@@ -198,4 +198,94 @@ try {
     print "HTTP Error (expected) - customer not found"
 }
 
+# Test 14: Payment endpoint - valid payment request
+print "\n\n14. Testing payment endpoint with valid payment request:"
+try {
+    let payment_payload = {
+        "warehouse_id": 1,
+        "district_id": 1,
+        "customer_id": 1,
+        "amount": 25.50
+    }
+    let response = http post $"($base_url)/payment" --content-type "application/json" ($payment_payload | to json)
+    print ($response | to json --indent 2)
+} catch {
+    print "Request failed"
+}
+
+# Test 15: Payment endpoint - different customer payment
+print "\n\n15. Testing payment endpoint with different customer:"
+try {
+    let payment_payload = {
+        "warehouse_id": 1,
+        "district_id": 2,
+        "customer_id": 100,
+        "amount": 15.25
+    }
+    let response = http post $"($base_url)/payment" --content-type "application/json" ($payment_payload | to json)
+    print ($response | to json --indent 2)
+} catch {
+    print "Request failed"
+}
+
+# Test 16: Payment endpoint - invalid amount (negative) (should return 400)
+print "\n\n16. Testing payment endpoint with negative amount (expect 400):"
+try {
+    let payment_payload = {
+        "warehouse_id": 1,
+        "district_id": 1,
+        "customer_id": 1,
+        "amount": -10.00
+    }
+    let response = http post $"($base_url)/payment" --content-type "application/json" ($payment_payload | to json)
+    print ($response | to json --indent 2)
+} catch {
+    print "HTTP Error (expected) - negative payment amount"
+}
+
+# Test 17: Payment endpoint - zero amount (should return 400)
+print "\n\n17. Testing payment endpoint with zero amount (expect 400):"
+try {
+    let payment_payload = {
+        "warehouse_id": 1,
+        "district_id": 1,
+        "customer_id": 1,
+        "amount": 0.00
+    }
+    let response = http post $"($base_url)/payment" --content-type "application/json" ($payment_payload | to json)
+    print ($response | to json --indent 2)
+} catch {
+    print "HTTP Error (expected) - zero payment amount"
+}
+
+# Test 18: Payment endpoint - non-existent customer (should return 404)
+print "\n\n18. Testing payment endpoint with non-existent customer (expect 404):"
+try {
+    let payment_payload = {
+        "warehouse_id": 1,
+        "district_id": 1,
+        "customer_id": 999999,
+        "amount": 10.00
+    }
+    let response = http post $"($base_url)/payment" --content-type "application/json" ($payment_payload | to json)
+    print ($response | to json --indent 2)
+} catch {
+    print "HTTP Error (expected) - customer not found"
+}
+
+# Test 19: Payment endpoint - non-existent warehouse (should return 404)
+print "\n\n19. Testing payment endpoint with non-existent warehouse (expect 404):"
+try {
+    let payment_payload = {
+        "warehouse_id": 999,
+        "district_id": 1,
+        "customer_id": 1,
+        "amount": 10.00
+    }
+    let response = http post $"($base_url)/payment" --content-type "application/json" ($payment_payload | to json)
+    print ($response | to json --indent 2)
+} catch {
+    print "HTTP Error (expected) - warehouse not found"
+}
+
 print "\n\nTesting complete!"

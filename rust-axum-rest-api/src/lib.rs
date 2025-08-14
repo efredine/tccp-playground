@@ -1,4 +1,7 @@
-use axum::{routing::{get, post}, Router};
+use axum::{
+    routing::{get, post},
+    Router,
+};
 use sqlx::{Pool, Postgres};
 
 pub mod handlers;
@@ -14,6 +17,7 @@ pub async fn create_app(pool: Pool<Postgres>) -> Router {
         .route("/stock-level", get(stock_level))
         .route("/order-status", get(order_status))
         .route("/new-order", post(new_order))
+        .route("/payment", post(payment))
         .with_state(pool)
 }
 

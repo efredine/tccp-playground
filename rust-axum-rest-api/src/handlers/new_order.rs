@@ -1,13 +1,8 @@
-use axum::{
-    extract::State,
-    http::StatusCode,
-    Json,
-};
+use axum::{extract::State, http::StatusCode, Json};
 use bigdecimal::{BigDecimal, FromPrimitive};
 use chrono::{NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres, Transaction};
-
 
 // Request Structure
 #[derive(Deserialize)]
@@ -95,13 +90,10 @@ pub async fn new_order(
     Json(request): Json<NewOrderRequest>,
 ) -> Result<Json<NewOrderResponse>, StatusCode> {
     // Start transaction - TPC-C New Order is a complex multi-table transaction
-    let mut tx = pool
-        .begin()
-        .await
-        .map_err(|e| {
-            eprintln!("Failed to start transaction: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+    let mut tx = pool.begin().await.map_err(|e| {
+        eprintln!("Failed to start transaction: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     // Validate request
     if request.order_lines.is_empty() || request.order_lines.len() > 15 {
@@ -114,13 +106,29 @@ pub async fn new_order(
     let warehouse = get_warehouse_data(&mut tx, request.warehouse_id).await?;
 
     // Step 2: Get district data and update next order ID
-    let (district, order_id) = get_and_update_district(&mut tx, request.warehouse_id, request.district_id).await?;
+    let (district, order_id) =
+        get_and_update_district(&mut tx, request.warehouse_id, request.district_id).await?;
 
     // Step 3: Get customer data
-    let customer = get_customer_data(&mut tx, request.warehouse_id, request.district_id, request.customer_id).await?;
+    let customer = get_customer_data(
+        &mut tx,
+        request.warehouse_id,
+        request.district_id,
+        request.customer_id,
+    )
+    .await?;
 
     // Step 4: Insert new order record
-    insert_new_order(&mut tx, request.warehouse_id, request.district_id, order_id, request.customer_id, entry_date, &request.order_lines).await?;
+    insert_new_order(
+        &mut tx,
+        request.warehouse_id,
+        request.district_id,
+        order_id,
+        request.customer_id,
+        entry_date,
+        &request.order_lines,
+    )
+    .await?;
 
     // Step 5: Process each order line
     let mut order_line_summaries = Vec::new();
@@ -144,14 +152,16 @@ pub async fn new_order(
             order_line.quantity,
             request.district_id,
             order_line.supply_warehouse_id != request.warehouse_id,
-        ).await?;
+        )
+        .await?;
 
         // Calculate line amount
         let line_amount = &item.i_price * BigDecimal::from(order_line.quantity);
         total_amount += &line_amount;
 
         // Determine brand/generic indicator
-        let brand_generic = if item.i_name.contains("ORIGINAL") && stock.s_data.contains("ORIGINAL") {
+        let brand_generic = if item.i_name.contains("ORIGINAL") && stock.s_data.contains("ORIGINAL")
+        {
             "B".to_string()
         } else {
             "G".to_string()
@@ -171,7 +181,8 @@ pub async fn new_order(
                 amount: line_amount.clone(),
                 dist_info: stock.s_dist_info.clone(),
             },
-        ).await?;
+        )
+        .await?;
 
         order_line_summaries.push(OrderLineSummary {
             item_id: order_line.item_id,
@@ -191,15 +202,21 @@ pub async fn new_order(
     total_amount = total_amount + tax_rate - discount_amount;
 
     // Update order with final details
-    update_order_totals(&mut tx, request.warehouse_id, request.district_id, order_id, request.order_lines.len() as i16, all_local).await?;
+    update_order_totals(
+        &mut tx,
+        request.warehouse_id,
+        request.district_id,
+        order_id,
+        request.order_lines.len() as i16,
+        all_local,
+    )
+    .await?;
 
     // Commit transaction
-    tx.commit()
-        .await
-        .map_err(|e| {
-            eprintln!("Failed to commit transaction: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+    tx.commit().await.map_err(|e| {
+        eprintln!("Failed to commit transaction: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     Ok(Json(NewOrderResponse {
         order_id,
@@ -222,20 +239,19 @@ async fn get_warehouse_data(
     tx: &mut Transaction<'_, Postgres>,
     warehouse_id: i16,
 ) -> Result<WarehouseData, StatusCode> {
-    let row = sqlx::query!(
-        "SELECT w_tax FROM warehouse1 WHERE w_id = $1",
-        warehouse_id
-    )
-    .fetch_optional(&mut **tx)
-    .await
-    .map_err(|e| {
-        eprintln!("Database error fetching warehouse: {}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
+    let row = sqlx::query!("SELECT w_tax FROM warehouse1 WHERE w_id = $1", warehouse_id)
+        .fetch_optional(&mut **tx)
+        .await
+        .map_err(|e| {
+            eprintln!("Database error fetching warehouse: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
 
     match row {
         Some(row) => Ok(WarehouseData {
-            w_tax: row.w_tax.unwrap_or_else(|| BigDecimal::from_f64(0.0).unwrap()),
+            w_tax: row
+                .w_tax
+                .unwrap_or_else(|| BigDecimal::from_f64(0.0).unwrap()),
         }),
         None => Err(StatusCode::NOT_FOUND),
     }
@@ -282,7 +298,9 @@ async fn get_and_update_district(
 
     Ok((
         DistrictData {
-            d_tax: district_row.d_tax.unwrap_or_else(|| BigDecimal::from_f64(0.0).unwrap()),
+            d_tax: district_row
+                .d_tax
+                .unwrap_or_else(|| BigDecimal::from_f64(0.0).unwrap()),
             d_next_o_id: next_order_id,
         },
         next_order_id,
@@ -312,7 +330,9 @@ async fn get_customer_data(
         Some(row) => Ok(CustomerData {
             c_last: row.c_last.unwrap_or_default(),
             c_credit: row.c_credit.unwrap_or_default(),
-            c_discount: row.c_discount.unwrap_or_else(|| BigDecimal::from_f64(0.0).unwrap()),
+            c_discount: row
+                .c_discount
+                .unwrap_or_else(|| BigDecimal::from_f64(0.0).unwrap()),
         }),
         None => Err(StatusCode::NOT_FOUND),
     }
@@ -368,21 +388,20 @@ async fn get_item_data(
     tx: &mut Transaction<'_, Postgres>,
     item_id: i32,
 ) -> Result<ItemData, StatusCode> {
-    let row = sqlx::query!(
-        "SELECT i_name, i_price FROM item1 WHERE i_id = $1",
-        item_id
-    )
-    .fetch_optional(&mut **tx)
-    .await
-    .map_err(|e| {
-        eprintln!("Database error fetching item: {}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
+    let row = sqlx::query!("SELECT i_name, i_price FROM item1 WHERE i_id = $1", item_id)
+        .fetch_optional(&mut **tx)
+        .await
+        .map_err(|e| {
+            eprintln!("Database error fetching item: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
 
     match row {
         Some(row) => Ok(ItemData {
             i_name: row.i_name.unwrap_or_default(),
-            i_price: row.i_price.unwrap_or_else(|| BigDecimal::from_f64(0.0).unwrap()),
+            i_price: row
+                .i_price
+                .unwrap_or_else(|| BigDecimal::from_f64(0.0).unwrap()),
         }),
         None => Err(StatusCode::NOT_FOUND), // TPC-C: 1% of items should be invalid
     }
@@ -439,10 +458,14 @@ async fn get_and_update_stock(
         9 => stock_row.s_dist_09,
         10 => stock_row.s_dist_10,
         _ => None,
-    }.unwrap_or_default();
+    }
+    .unwrap_or_default();
 
     // Update stock
-    let new_ytd = stock_row.s_ytd.unwrap_or_else(|| BigDecimal::from_f64(0.0).unwrap()) + BigDecimal::from(quantity);
+    let new_ytd = stock_row
+        .s_ytd
+        .unwrap_or_else(|| BigDecimal::from_f64(0.0).unwrap())
+        + BigDecimal::from(quantity);
     let new_order_cnt = stock_row.s_order_cnt.unwrap_or(0) + 1;
     let new_remote_cnt = if is_remote {
         stock_row.s_remote_cnt.unwrap_or(0) + 1
