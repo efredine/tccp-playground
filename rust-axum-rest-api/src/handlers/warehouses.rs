@@ -8,7 +8,7 @@ pub async fn get_warehouses(
 ) -> Result<Json<Vec<Warehouse>>, StatusCode> {
     let warehouses = sqlx::query_as!(
         Warehouse,
-        "SELECT w_id, w_name, w_street_1, w_street_2, w_city, w_state, w_zip, w_tax, w_ytd FROM warehouse1 LIMIT 100"
+        "SELECT w_id, w_name, w_street_1, w_street_2, w_city, w_state, w_zip, w_tax, w_ytd FROM warehouse1 ORDER BY w_id ASC LIMIT 100"
     )
     .fetch_all(&pool)
     .await

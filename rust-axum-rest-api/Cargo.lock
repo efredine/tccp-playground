@@ -1457,6 +1457,7 @@ dependencies = [
  "sqlx",
  "tokio",
  "tower",
+ "tower-http",
  "tower-service",
  "tracing",
  "tracing-subscriber",
