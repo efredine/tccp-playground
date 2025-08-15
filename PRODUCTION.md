@@ -189,6 +189,13 @@ Verify the `dist/` directory exists:
 ls -la ui-vite-react/dist/
 ```
 
+### SPA routing issues (404 on refresh)
+
+If you get 404 errors when refreshing frontend routes like `/new-order`:
+- This is automatically handled by the SPA fallback configuration
+- All non-API routes serve `index.html` to enable client-side routing
+- Make sure you rebuilt the frontend after any routing changes
+
 ### CORS issues
 
 In production mode, CORS is automatically handled since frontend and API are served from the same origin.

@@ -45,8 +45,9 @@ pub async fn create_app(pool: Pool<Postgres>) -> Router {
         // No CORS needed since frontend and API are served from same origin
         Router::new()
             .nest("/api", api_routes)
-            .fallback_service(ServeDir::new(frontend_dist)
-                .not_found_service(ServeFile::new(frontend_dist.join("index.html"))))
+            .nest_service("/assets", ServeDir::new(frontend_dist.join("assets")))
+            .route_service("/", ServeFile::new(frontend_dist.join("index.html")))
+            .fallback_service(ServeFile::new(frontend_dist.join("index.html")))
     } else {
         // Development mode: API only with CORS for cross-origin requests from Vite dev server
         api_routes.layer(cors)
