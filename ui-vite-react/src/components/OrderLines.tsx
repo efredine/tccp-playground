@@ -12,6 +12,7 @@ import {
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { useCallback } from 'react';
 import { ItemAutocomplete } from './ItemAutocomplete';
+import { SupplyWarehouseSelect } from './SupplyWarehouseSelect';
 import { useStockInfo } from '../hooks/useItems';
 import type { Item } from '../services/itemService';
 
@@ -55,7 +56,7 @@ function OrderLineRow({
   return (
     <Paper sx={{ p: 2, mb: 2 }}>
       <Grid container spacing={2} alignItems="flex-start">
-        <Grid size={{ xs: 12, md: 5 }}>
+        <Grid size={{ xs: 12, md: 4.5 }}>
           <ItemAutocomplete
             warehouseId={warehouseId}
             value={line.item}
@@ -76,19 +77,17 @@ function OrderLineRow({
           />
         </Grid>
 
-        <Grid size={{ xs: 4, md: 1.5 }}>
-          <TextField
-            label="Supply WH"
-            type="number"
-            value={line.supply_w_id || warehouseId || ''}
-            onChange={(e) => onUpdate({ supply_w_id: parseInt(e.target.value) || warehouseId })}
-            fullWidth
+        <Grid size={{ xs: 4, md: 2.5 }}>
+          <SupplyWarehouseSelect
+            value={line.supply_w_id || warehouseId}
+            onChange={(supplyWarehouseId) => onUpdate({ supply_w_id: supplyWarehouseId })}
+            orderWarehouseId={warehouseId}
             disabled={!line.item}
-            helperText="Optional"
+            helperText="Optional override"
           />
         </Grid>
 
-        <Grid size={{ xs: 4, md: 3 }}>
+        <Grid size={{ xs: 4, md: 2.5 }}>
           {line.item ? (
             <Box sx={{ pt: 1 }}>
               <Typography variant="body2" color="text.secondary">
@@ -178,9 +177,14 @@ export function OrderLines({ warehouseId, lines, onChange }: OrderLinesProps) {
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h6">
-          Order Items ({lines.length} line{lines.length !== 1 ? 's' : ''})
-        </Typography>
+        <Box>
+          <Typography variant="h6">
+            Order Items ({lines.length} line{lines.length !== 1 ? 's' : ''})
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Supply warehouse defaults to order warehouse (WH {warehouseId}). Override per item if needed.
+          </Typography>
+        </Box>
         <Button
           startIcon={<AddIcon />}
           onClick={addLine}
