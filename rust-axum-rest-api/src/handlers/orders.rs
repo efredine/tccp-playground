@@ -8,6 +8,25 @@ use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres};
 
+// Enum types for type-safe query parameters
+#[derive(Deserialize, Debug, Clone, Copy)]
+#[serde(rename_all = "snake_case")]
+pub enum SortBy {
+    OrderId,
+    EntryDate,
+    CustomerLast,
+    WarehouseId,
+    DistrictId,
+    CarrierId,
+}
+
+#[derive(Deserialize, Debug, Clone, Copy)]
+#[serde(rename_all = "lowercase")]
+pub enum SortDirection {
+    Asc,
+    Desc,
+}
+
 // Request Query Parameters for order listing
 #[derive(Deserialize)]
 pub struct OrdersQuery {
@@ -25,9 +44,9 @@ pub struct OrdersQuery {
     pub page: Option<u32>,
     pub per_page: Option<u32>,
 
-    // Sorting
-    pub sort_by: Option<String>, // "order_id", "entry_date", "customer_last", etc.
-    pub sort_dir: Option<String>, // "asc" or "desc"
+    // Sorting - now with proper enums!
+    pub sort_by: Option<SortBy>,
+    pub sort_dir: Option<SortDirection>,
 }
 
 // Response structures for order listing
@@ -74,26 +93,24 @@ pub async fn list_orders(
     let per_page = params.per_page.unwrap_or(20).min(100); // Cap at 100 per page
     let offset = (page - 1) * per_page;
 
-    // Set defaults for sorting
-    let sort_by = params.sort_by.as_deref().unwrap_or("entry_date");
-    let sort_dir = params.sort_dir.as_deref().unwrap_or("desc");
+    // Set defaults for sorting using enums
+    let sort_by = params.sort_by.unwrap_or(SortBy::EntryDate);
+    let sort_dir = params.sort_dir.unwrap_or(SortDirection::Desc);
 
-    // Validate and map sort column for security
+    // Map sort column using pattern matching (compile-time safe!)
     let sort_column = match sort_by {
-        "order_id" => "o.o_id",
-        "entry_date" => "o.o_entry_d",
-        "customer_last" => "c.c_last",
-        "warehouse_id" => "o.o_w_id",
-        "district_id" => "o.o_d_id",
-        "carrier_id" => "o.o_carrier_id",
-        _ => "o.o_entry_d", // default fallback for security
+        SortBy::OrderId => "o.o_id",
+        SortBy::EntryDate => "o.o_entry_d",
+        SortBy::CustomerLast => "c.c_last",
+        SortBy::WarehouseId => "o.o_w_id",
+        SortBy::DistrictId => "o.o_d_id",
+        SortBy::CarrierId => "o.o_carrier_id",
     };
 
-    // Validate sort direction for security
-    let sort_direction = match sort_dir.to_lowercase().as_str() {
-        "asc" => "ASC",
-        "desc" => "DESC",
-        _ => "DESC", // default fallback for security
+    // Map sort direction using pattern matching (compile-time safe!)
+    let sort_direction = match sort_dir {
+        SortDirection::Asc => "ASC",
+        SortDirection::Desc => "DESC",
     };
 
     // Build WHERE conditions based on filters (using direct values for simplicity)
