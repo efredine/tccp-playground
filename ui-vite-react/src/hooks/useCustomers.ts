@@ -8,12 +8,22 @@ export const useCustomers = (
   searchQuery?: string
 ) => {
   const debouncedSearchQuery = useDebounce(searchQuery || '', 300); // Debounce search by 300ms
+  
+  // Track if we're waiting for debounce
+  const isDebouncing = searchQuery !== debouncedSearchQuery;
 
-  return useQuery({
+  const query = useQuery({
     queryKey: ['customers', warehouseId, districtId, debouncedSearchQuery],
     queryFn: () => searchCustomers(warehouseId!, districtId!, debouncedSearchQuery),
     enabled: !!warehouseId && !!districtId, // Only run if W/D selected
     staleTime: 1000 * 60, // 1 minute stale time for search results
     retry: 1,
   });
+
+  return {
+    ...query,
+    isDebouncing,
+    // Combined loading state: true if debouncing OR fetching
+    isSearching: isDebouncing || query.isFetching,
+  };
 };

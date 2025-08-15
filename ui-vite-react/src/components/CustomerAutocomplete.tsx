@@ -32,11 +32,19 @@ export function CustomerAutocomplete({
   helperText,
 }: CustomerAutocompleteProps) {
   const [inputValue, setInputValue] = useState('');
-  const { data: customers, isLoading, isError, error: queryError } = useCustomers(
+  const { data: customers, isFetching, isSearching, isError, error: queryError } = useCustomers(
     warehouseId,
     districtId,
     inputValue
   );
+
+  console.log({ 
+    inputValue, 
+    isFetching, 
+    isSearching,
+    isError, 
+    customersCount: customers?.length || 0
+  });
 
   const options = customers || [];
 
@@ -65,7 +73,7 @@ export function CustomerAutocomplete({
         `${option.c_first || ''} ${option.c_middle || ''} ${option.c_last || ''} (ID: ${option.c_id})`.trim()
       }
       isOptionEqualToValue={(option, val) => option.c_id === val.c_id}
-      loading={isLoading}
+      loading={isSearching}
       disabled={isDisabled}
       renderInput={(params) => (
         <TextField
@@ -78,7 +86,7 @@ export function CustomerAutocomplete({
             ...params.InputProps,
             endAdornment: (
               <>
-                {isLoading ? <CircularProgress color="inherit" size={20} /> : null}
+                {isSearching ? <CircularProgress color="inherit" size={20} /> : null}
                 {params.InputProps.endAdornment}
               </>
             ),
@@ -97,7 +105,7 @@ export function CustomerAutocomplete({
           </Box>
         </Box>
       )}
-      noOptionsText={inputValue.length < 2 ? "Type at least 2 characters to search" : "No customers found"}
+      noOptionsText={isSearching ? "Searching..." : "No customers found"}
     />
   );
 }
