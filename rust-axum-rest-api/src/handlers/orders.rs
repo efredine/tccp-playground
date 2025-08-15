@@ -75,19 +75,25 @@ pub async fn list_orders(
     let offset = (page - 1) * per_page;
 
     // Set defaults for sorting
-    let sort_by = params.sort_by.as_deref().unwrap_or("o_entry_d");
-    let _sort_dir = params.sort_dir.as_deref().unwrap_or("desc");
+    let sort_by = params.sort_by.as_deref().unwrap_or("entry_date");
+    let sort_dir = params.sort_dir.as_deref().unwrap_or("desc");
 
-    // For this initial version, we'll do basic pagination without dynamic filters
-    // TODO: Add dynamic filtering in a future enhancement
-    let _sort_column = match sort_by {
+    // Validate and map sort column for security
+    let sort_column = match sort_by {
         "order_id" => "o.o_id",
         "entry_date" => "o.o_entry_d",
         "customer_last" => "c.c_last",
         "warehouse_id" => "o.o_w_id",
         "district_id" => "o.o_d_id",
         "carrier_id" => "o.o_carrier_id",
-        _ => "o.o_entry_d", // default fallback
+        _ => "o.o_entry_d", // default fallback for security
+    };
+
+    // Validate sort direction for security
+    let sort_direction = match sort_dir.to_lowercase().as_str() {
+        "asc" => "ASC",
+        "desc" => "DESC",
+        _ => "DESC", // default fallback for security
     };
 
     // Get the total count
@@ -100,8 +106,8 @@ pub async fn list_orders(
         })?
         .unwrap_or(0);
 
-    // Optimized approach: First get the orders we need, then calculate totals only for those
-    let orders_rows = sqlx::query!(
+    // Build dynamic query with user-specified sorting
+    let query = format!(
         r#"
         SELECT 
             o.o_id,
@@ -121,12 +127,31 @@ pub async fn list_orders(
             END as is_delivered
         FROM orders1 o
         LEFT JOIN customer1 c ON o.o_w_id = c.c_w_id AND o.o_d_id = c.c_d_id AND o.o_c_id = c.c_id
-        ORDER BY o.o_entry_d DESC, o.o_w_id, o.o_d_id, o.o_id
+        ORDER BY {} {}, o.o_w_id, o.o_d_id, o.o_id
         LIMIT $1 OFFSET $2
         "#,
-        per_page as i64,
-        offset as i64
-    )
+        sort_column, sort_direction
+    );
+
+    let orders_rows = sqlx::query_as::<
+        _,
+        (
+            i32,                           // o_id
+            i16,                           // o_w_id
+            i16,                           // o_d_id
+            Option<i32>,                   // o_c_id
+            Option<chrono::NaiveDateTime>, // o_entry_d
+            Option<i16>,                   // o_carrier_id
+            Option<i16>,                   // o_ol_cnt
+            Option<i16>,                   // o_all_local
+            Option<String>,                // c_first
+            Option<String>,                // c_middle
+            Option<String>,                // c_last
+            Option<bool>,                  // is_delivered
+        ),
+    >(&query)
+    .bind(per_page as i64)
+    .bind(offset as i64)
     .fetch_all(&pool)
     .await
     .map_err(|e| {
@@ -138,20 +163,20 @@ pub async fn list_orders(
     let mut orders: Vec<OrderSummary> = orders_rows
         .into_iter()
         .map(|row| OrderSummary {
-            o_id: row.o_id,
-            o_w_id: row.o_w_id,
-            o_d_id: row.o_d_id,
-            o_c_id: row.o_c_id,
-            o_entry_d: row.o_entry_d,
-            o_carrier_id: row.o_carrier_id,
-            o_ol_cnt: row.o_ol_cnt,
-            o_all_local: row.o_all_local,
-            customer_first: row.c_first,
-            customer_middle: row.c_middle,
-            customer_last: row.c_last,
-            total_amount: None, // Will be filled in below
-            is_delivered: row.is_delivered.unwrap_or(false),
-            line_count: 0, // Will be filled in below
+            o_id: row.0,                           // o_id
+            o_w_id: row.1,                         // o_w_id
+            o_d_id: row.2,                         // o_d_id
+            o_c_id: row.3,                         // o_c_id
+            o_entry_d: row.4,                      // o_entry_d
+            o_carrier_id: row.5,                   // o_carrier_id
+            o_ol_cnt: row.6,                       // o_ol_cnt
+            o_all_local: row.7,                    // o_all_local
+            customer_first: row.8,                 // c_first
+            customer_middle: row.9,                // c_middle
+            customer_last: row.10,                 // c_last
+            total_amount: None,                    // Will be filled in below
+            is_delivered: row.11.unwrap_or(false), // is_delivered
+            line_count: 0,                         // Will be filled in below
         })
         .collect();
 
