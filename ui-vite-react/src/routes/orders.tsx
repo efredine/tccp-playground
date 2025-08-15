@@ -1,38 +1,88 @@
 import { createFileRoute } from '@tanstack/react-router';
+import React, { useState } from 'react';
 import { 
   Typography, 
-  Paper, 
-  Box 
+  Box,
+  Container,
 } from '@mui/material';
+import { useOrders } from '../hooks/useOrders';
+import type { OrdersQuery, OrderSummary } from '../types/orders';
+import OrderSearch from '../components/OrderSearch';
+import OrderList from '../components/OrderList';
+import OrderDetails from '../components/OrderDetails';
 
 export const Route = createFileRoute('/orders')({
   component: OrdersPage,
 });
 
 function OrdersPage() {
+  const [query, setQuery] = useState<OrdersQuery>({
+    page: 1,
+    per_page: 20,
+    sort_by: 'entry_date',
+    sort_dir: 'desc',
+  });
+
+  const [selectedOrder, setSelectedOrder] = useState<OrderSummary | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+
+  // Fetch orders based on current query
+  const { data, isLoading, error } = useOrders(query);
+
+  // Debug logging can be re-enabled if needed for troubleshooting
+
+  const handleSearch = (newQuery: OrdersQuery) => {
+    setQuery(newQuery);
+  };
+
+  const handleQueryChange = (newQuery: OrdersQuery) => {
+    setQuery(newQuery);
+  };
+
+  const handleViewOrder = (order: OrderSummary) => {
+    setSelectedOrder(order);
+    setDetailsOpen(true);
+  };
+
+  const handleCloseDetails = () => {
+    setDetailsOpen(false);
+    setSelectedOrder(null);
+  };
+
   return (
-    <Box>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Orders
-      </Typography>
-      
-      <Paper sx={{ p: 3, mt: 2 }}>
-        <Typography variant="body1">
-          Orders list and filtering will be implemented here.
+    <Container maxWidth="xl">
+      <Box>
+        <Typography variant="h4" component="h1" gutterBottom>
+          Order Management
         </Typography>
         
-        {/* TODO: Implement OrdersList component */}
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-          This will include:
+        <Typography variant="body1" color="text.secondary" gutterBottom>
+          Search, filter, and manage orders across all warehouses and districts.
         </Typography>
-        <ul>
-          <li>Filter panel (warehouse, district, customer, status, date range)</li>
-          <li>Sortable data table with pagination</li>
-          <li>Order status indicators</li>
-          <li>Click-to-detail navigation</li>
-          <li>Bulk operations (future)</li>
-        </ul>
-      </Paper>
-    </Box>
+        
+        {/* Search Component */}
+        <OrderSearch 
+          onSearch={handleSearch}
+          isLoading={isLoading}
+        />
+        
+        {/* Results List */}
+        <OrderList
+          data={data}
+          isLoading={isLoading}
+          error={error}
+          query={query}
+          onQueryChange={handleQueryChange}
+          onViewOrder={handleViewOrder}
+        />
+        
+        {/* Order Details Dialog */}
+        <OrderDetails
+          open={detailsOpen}
+          order={selectedOrder}
+          onClose={handleCloseDetails}
+        />
+      </Box>
+    </Container>
   );
 }
