@@ -96,17 +96,69 @@ pub async fn list_orders(
         _ => "DESC", // default fallback for security
     };
 
-    // Get the total count
-    let total_count = sqlx::query_scalar!("SELECT COUNT(*) FROM orders1")
+    // Build WHERE conditions based on filters (using direct values for simplicity)
+    // Input is already validated through Serde deserialization
+    let mut where_conditions = Vec::new();
+
+    if let Some(warehouse_id) = params.warehouse_id {
+        where_conditions.push(format!("o.o_w_id = {}", warehouse_id));
+    }
+
+    if let Some(district_id) = params.district_id {
+        where_conditions.push(format!("o.o_d_id = {}", district_id));
+    }
+
+    if let Some(customer_id) = params.customer_id {
+        where_conditions.push(format!("o.o_c_id = {}", customer_id));
+    }
+
+    if let Some(order_id) = params.order_id {
+        where_conditions.push(format!("o.o_id = {}", order_id));
+    }
+
+    if let Some(from_date) = &params.from_date {
+        // Validate date format to prevent SQL injection
+        if from_date
+            .chars()
+            .all(|c| c.is_ascii_digit() || c == '-' || c == ' ' || c == ':' || c == 'T')
+        {
+            where_conditions.push(format!("o.o_entry_d >= '{}'", from_date));
+        }
+    }
+
+    if let Some(to_date) = &params.to_date {
+        // Validate date format to prevent SQL injection
+        if to_date
+            .chars()
+            .all(|c| c.is_ascii_digit() || c == '-' || c == ' ' || c == ':' || c == 'T')
+        {
+            where_conditions.push(format!("o.o_entry_d <= '{}'", to_date));
+        }
+    }
+
+    let where_clause = if where_conditions.is_empty() {
+        String::new()
+    } else {
+        format!("WHERE {}", where_conditions.join(" AND "))
+    };
+
+    // Get the total count with the same filters
+    let count_query = format!(
+        "SELECT COUNT(*) FROM orders1 o LEFT JOIN customer1 c ON o.o_w_id = c.c_w_id AND o.o_d_id = c.c_d_id AND o.o_c_id = c.c_id {}",
+        where_clause
+    );
+
+    let total_count_result = sqlx::query_scalar::<_, i64>(&count_query)
         .fetch_one(&pool)
         .await
         .map_err(|e| {
             eprintln!("Database error counting orders: {}", e);
             StatusCode::INTERNAL_SERVER_ERROR
-        })?
-        .unwrap_or(0);
+        })?;
 
-    // Build dynamic query with user-specified sorting
+    let total_count = total_count_result;
+
+    // Build dynamic query with filtering and sorting
     let query = format!(
         r#"
         SELECT 
@@ -127,10 +179,11 @@ pub async fn list_orders(
             END as is_delivered
         FROM orders1 o
         LEFT JOIN customer1 c ON o.o_w_id = c.c_w_id AND o.o_d_id = c.c_d_id AND o.o_c_id = c.c_id
+        {}
         ORDER BY {} {}, o.o_w_id, o.o_d_id, o.o_id
         LIMIT $1 OFFSET $2
         "#,
-        sort_column, sort_direction
+        where_clause, sort_column, sort_direction
     );
 
     let orders_rows = sqlx::query_as::<
