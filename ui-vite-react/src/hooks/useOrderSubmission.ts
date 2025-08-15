@@ -1,7 +1,7 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, type UseMutationResult } from '@tanstack/react-query';
 import { submitNewOrder, type NewOrderRequest, type NewOrderResponse } from '../services/orderService';
 
-export const useOrderSubmission = () => {
+export const useOrderSubmission = (): UseMutationResult<NewOrderResponse, Error, NewOrderRequest> => {
   return useMutation<NewOrderResponse, Error, NewOrderRequest>({
     mutationFn: submitNewOrder,
     onSuccess: (data) => {

@@ -32,7 +32,7 @@ export function CustomerAutocomplete({
   helperText,
 }: CustomerAutocompleteProps) {
   const [inputValue, setInputValue] = useState('');
-  const { data: customers, isFetching, isSearching, isError, error: queryError } = useCustomers(
+  const { data: customers, isSearching, isError, error: queryError } = useCustomers(
     warehouseId,
     districtId,
     inputValue

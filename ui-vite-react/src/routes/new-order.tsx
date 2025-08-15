@@ -16,7 +16,8 @@ import { DistrictSelect } from '../components/DistrictSelect';
 import { CustomerAutocomplete } from '../components/CustomerAutocomplete';
 import { OrderLines, type OrderLine } from '../components/OrderLines';
 import { useOrderSubmission } from '../hooks/useOrderSubmission';
-import { validateOrder, formatValidationErrors } from '../utils/orderValidation';
+import type { NewOrderResponse } from '../services/orderService';
+import { validateOrder } from '../utils/orderValidation';
 import { OrderConfirmation } from '../components/OrderConfirmation';
 import type { Customer } from '../types/order.types';
 
@@ -38,6 +39,14 @@ function NewOrderPage() {
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   
   const orderMutation = useOrderSubmission();
+
+  // Helper function to get order data with proper type narrowing
+  const getOrderData = (): NewOrderResponse | null => {
+    if (orderMutation.isSuccess && orderMutation.data) {
+      return orderMutation.data as NewOrderResponse;
+    }
+    return null;
+  };
 
   // Reset district, customer, and order lines when warehouse changes
   const handleWarehouseChange = (warehouseId: number) => {
@@ -125,14 +134,15 @@ function NewOrderPage() {
   };
 
   // Show order confirmation if submission was successful
-  if (orderMutation.isSuccess && orderMutation.data) {
+  const orderData = getOrderData();
+  if (orderData) {
     return (
       <Box>
         <Typography variant="h4" component="h1" gutterBottom>
           Order Confirmation
         </Typography>
         <OrderConfirmation 
-          order={orderMutation.data} 
+          order={orderData} 
           onCreateAnother={handleCreateAnotherOrder}
         />
       </Box>
@@ -233,14 +243,17 @@ function NewOrderPage() {
             )}
 
             {/* Success Message */}
-            {orderMutation.isSuccess && (
-              <Alert severity="success" sx={{ mb: 3 }}>
-                <Typography variant="subtitle2">
-                  Order Submitted Successfully!
-                </Typography>
-                Order ID: {orderMutation.data?.order_id} | Total: ${parseFloat(orderMutation.data?.total_amount || '0').toFixed(2)}
-              </Alert>
-            )}
+            {(() => {
+              const successOrderData = getOrderData();
+              return successOrderData ? (
+                <Alert severity="success" sx={{ mb: 3 }}>
+                  <Typography variant="subtitle2">
+                    Order Submitted Successfully!
+                  </Typography>
+                  Order ID: {successOrderData.order_id} | Total: ${parseFloat(successOrderData.total_amount || '0').toFixed(2)}
+                </Alert>
+              ) : null;
+            })()}
 
             {/* Order Summary & Submit */}
             <Paper sx={{ p: 3, bgcolor: 'grey.50' }}>
