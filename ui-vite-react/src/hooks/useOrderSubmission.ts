@@ -4,8 +4,7 @@ import { submitNewOrder, type NewOrderRequest, type NewOrderResponse } from '../
 export const useOrderSubmission = (): UseMutationResult<NewOrderResponse, Error, NewOrderRequest> => {
   return useMutation<NewOrderResponse, Error, NewOrderRequest>({
     mutationFn: submitNewOrder,
-    onSuccess: (data) => {
-      console.log('Order submitted successfully:', data);
+    onSuccess: (_data) => {
     },
     onError: (error) => {
       console.error('Order submission failed:', error);

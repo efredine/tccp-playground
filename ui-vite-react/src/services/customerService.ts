@@ -7,15 +7,16 @@ export const searchCustomers = async (
   searchQuery: string = '',
   limit: number = 20
 ): Promise<Customer[]> => {
-  const url = new URL(`${API_BASE_URL}${API_ENDPOINTS.customers}`);
-  url.searchParams.append('warehouse_id', warehouseId.toString());
-  url.searchParams.append('district_id', districtId.toString());
+  const params = new URLSearchParams();
+  params.append('warehouse_id', warehouseId.toString());
+  params.append('district_id', districtId.toString());
   if (searchQuery.trim()) {
-    url.searchParams.append('search', searchQuery.trim());
+    params.append('search', searchQuery.trim());
   }
-  url.searchParams.append('limit', limit.toString());
+  params.append('limit', limit.toString());
 
-  const response = await fetch(url.toString());
+  const url = `${API_BASE_URL}${API_ENDPOINTS.customers}?${params.toString()}`;
+  const response = await fetch(url);
   
   if (!response.ok) {
     throw new Error(`Failed to search customers: ${response.status} ${response.statusText}`);

@@ -21,14 +21,15 @@ export const searchItems = async (
   searchQuery: string = '',
   limit: number = 20
 ): Promise<Item[]> => {
-  const url = new URL(`${API_BASE_URL}${API_ENDPOINTS.items}`);
-  url.searchParams.append('warehouse_id', warehouseId.toString());
+  const params = new URLSearchParams();
+  params.append('warehouse_id', warehouseId.toString());
   if (searchQuery.trim()) {
-    url.searchParams.append('search', searchQuery.trim());
+    params.append('search', searchQuery.trim());
   }
-  url.searchParams.append('limit', limit.toString());
+  params.append('limit', limit.toString());
 
-  const response = await fetch(url.toString());
+  const url = `${API_BASE_URL}${API_ENDPOINTS.items}?${params.toString()}`;
+  const response = await fetch(url);
   
   if (!response.ok) {
     throw new Error(`Failed to search items: ${response.status} ${response.statusText}`);
@@ -42,11 +43,12 @@ export const getStockInfo = async (
   warehouseId: number,
   itemId: number
 ): Promise<StockInfo> => {
-  const url = new URL(`${API_BASE_URL}/stock`);
-  url.searchParams.append('warehouse_id', warehouseId.toString());
-  url.searchParams.append('item_id', itemId.toString());
+  const params = new URLSearchParams();
+  params.append('warehouse_id', warehouseId.toString());
+  params.append('item_id', itemId.toString());
 
-  const response = await fetch(url.toString());
+  const url = `${API_BASE_URL}/stock?${params.toString()}`;
+  const response = await fetch(url);
   
   if (!response.ok) {
     if (response.status === 404) {

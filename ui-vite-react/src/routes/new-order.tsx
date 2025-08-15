@@ -96,8 +96,7 @@ function NewOrderPage() {
     };
 
     try {
-      const result = await orderMutation.mutateAsync(orderRequest);
-      console.log('Order submitted successfully:', result);
+      await orderMutation.mutateAsync(orderRequest);
       // Success state will be handled by the UI below
     } catch (error) {
       console.error('Failed to submit order:', error);
