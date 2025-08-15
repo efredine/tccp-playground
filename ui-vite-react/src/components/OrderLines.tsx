@@ -54,8 +54,8 @@ function OrderLineRow({
 
   return (
     <Paper sx={{ p: 2, mb: 2 }}>
-      <Grid container spacing={2} alignItems="center">
-        <Grid size={{ xs: 12, md: 4 }}>
+      <Grid container spacing={2} alignItems="flex-start">
+        <Grid size={{ xs: 12, md: 5 }}>
           <ItemAutocomplete
             warehouseId={warehouseId}
             value={line.item}
@@ -64,37 +64,37 @@ function OrderLineRow({
           />
         </Grid>
         
-        <Grid size={{ xs: 6, md: 2 }}>
+        <Grid size={{ xs: 4, md: 1.5 }}>
           <TextField
             label="Quantity"
             type="number"
             value={line.quantity}
             onChange={(e) => onUpdate({ quantity: Math.max(1, parseInt(e.target.value) || 1) })}
             inputProps={{ min: 1, max: 99 }}
-            size="small"
+            fullWidth
             disabled={!line.item}
           />
         </Grid>
 
-        <Grid size={{ xs: 6, md: 2 }}>
+        <Grid size={{ xs: 4, md: 1.5 }}>
           <TextField
-            label="Supply Warehouse"
+            label="Supply WH"
             type="number"
             value={line.supply_w_id || warehouseId || ''}
             onChange={(e) => onUpdate({ supply_w_id: parseInt(e.target.value) || warehouseId })}
-            size="small"
+            fullWidth
             disabled={!line.item}
-            helperText="Optional override"
+            helperText="Optional"
           />
         </Grid>
 
-        <Grid size={{ xs: 8, md: 3 }}>
-          {line.item && (
-            <Box>
-              <Typography variant="body2">
+        <Grid size={{ xs: 4, md: 3 }}>
+          {line.item ? (
+            <Box sx={{ pt: 1 }}>
+              <Typography variant="body2" color="text.secondary">
                 Unit: ${parseFloat(line.item.i_price || '0').toFixed(2)}
               </Typography>
-              <Typography variant="body2" fontWeight="medium">
+              <Typography variant="body1" fontWeight="medium" color="primary">
                 Total: ${totalPrice.toFixed(2)}
               </Typography>
               {stockLoading && (
@@ -105,16 +105,23 @@ function OrderLineRow({
               {stockInfo && (
                 <Typography 
                   variant="caption" 
-                  color={isOutOfStock ? 'error' : 'text.secondary'}
+                  color={isOutOfStock ? 'error' : 'success.main'}
+                  display="block"
                 >
                   Stock: {stockInfo.s_quantity} available
                 </Typography>
               )}
             </Box>
+          ) : (
+            <Box sx={{ pt: 1 }}>
+              <Typography variant="body2" color="text.disabled">
+                Select an item to see pricing
+              </Typography>
+            </Box>
           )}
         </Grid>
 
-        <Grid size={{ xs: 4, md: 1 }}>
+        <Grid size={{ xs: 12, md: 1 }} sx={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', pt: 1 }}>
           <IconButton 
             onClick={onDelete} 
             disabled={!canDelete}
