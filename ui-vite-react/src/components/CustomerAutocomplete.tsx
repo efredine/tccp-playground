@@ -38,13 +38,8 @@ export function CustomerAutocomplete({
     inputValue
   );
 
-  console.log({ 
-    inputValue, 
-    isFetching, 
-    isSearching,
-    isError, 
-    customersCount: customers?.length || 0
-  });
+  // Debug logging (can be removed in production)
+  // console.log({ inputValue, isSearching, customersCount: customers?.length || 0 });
 
   const options = customers || [];
 
