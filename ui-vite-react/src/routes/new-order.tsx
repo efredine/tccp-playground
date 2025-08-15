@@ -8,6 +8,8 @@ import {
 } from '@mui/material';
 import { WarehouseSelect } from '../components/WarehouseSelect';
 import { DistrictSelect } from '../components/DistrictSelect';
+import { CustomerAutocomplete } from '../components/CustomerAutocomplete';
+import type { Customer } from '../types/order.types';
 
 export const Route = createFileRoute('/new-order')({
   component: NewOrderPage,
@@ -16,11 +18,19 @@ export const Route = createFileRoute('/new-order')({
 function NewOrderPage() {
   const [selectedWarehouse, setSelectedWarehouse] = useState<number>();
   const [selectedDistrict, setSelectedDistrict] = useState<number>();
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 
-  // Reset district when warehouse changes
+  // Reset district and customer when warehouse changes
   const handleWarehouseChange = (warehouseId: number) => {
     setSelectedWarehouse(warehouseId);
     setSelectedDistrict(undefined); // Clear district selection
+    setSelectedCustomer(null); // Clear customer selection
+  };
+
+  // Reset customer when district changes
+  const handleDistrictChange = (districtId: number) => {
+    setSelectedDistrict(districtId);
+    setSelectedCustomer(null); // Clear customer selection
   };
 
   return (
@@ -47,19 +57,31 @@ function NewOrderPage() {
             <DistrictSelect
               warehouseId={selectedWarehouse}
               value={selectedDistrict}
-              onChange={setSelectedDistrict}
+              onChange={handleDistrictChange}
               required
               helperText="Select the district within the warehouse"
             />
           </Grid>
+          <Grid size={{ xs: 12, md: 4 }}>
+            <CustomerAutocomplete
+              warehouseId={selectedWarehouse}
+              districtId={selectedDistrict}
+              value={selectedCustomer}
+              onChange={setSelectedCustomer}
+              required
+              helperText="Search for a customer by name or ID"
+            />
+          </Grid>
         </Grid>
 
-        {(selectedWarehouse || selectedDistrict) && (
+        {(selectedWarehouse || selectedDistrict || selectedCustomer) && (
           <Box sx={{ mt: 3, p: 2, bgcolor: 'primary.50', borderRadius: 1 }}>
             <Typography variant="body2" color="primary.main">
               {selectedWarehouse && `Selected Warehouse: ${selectedWarehouse}`}
               {selectedWarehouse && selectedDistrict && ' | '}
               {selectedDistrict && `District: ${selectedDistrict}`}
+              {selectedDistrict && selectedCustomer && ' | '}
+              {selectedCustomer && `Customer: ${selectedCustomer.c_first} ${selectedCustomer.c_last} (ID: ${selectedCustomer.c_id})`}
             </Typography>
           </Box>
         )}
@@ -68,8 +90,6 @@ function NewOrderPage() {
           Still to implement:
         </Typography>
         <ul>
-          <li>District selection (depends on warehouse)</li>
-          <li>Customer search/selection</li>
           <li>Dynamic order lines with item search</li>
           <li>Real-time price calculation</li>
           <li>Order validation and submission</li>

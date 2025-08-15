@@ -22,6 +22,7 @@ pub async fn create_app(pool: Pool<Postgres>) -> Router {
         .route("/", get(root))
         .route("/warehouses", get(get_warehouses))
         .route("/districts", get(get_districts))
+        .route("/customers", get(search_customers))
         .route("/stock-level", get(stock_level))
         .route("/order-status", get(order_status))
         .route("/new-order", post(new_order))
