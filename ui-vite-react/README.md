@@ -1,100 +1,169 @@
-# TPC-C Order Management UI
+# TPC-C UI (Vite + React)
 
-A modern React-based web interface for the TPC-C Order Management System.
+A modern React frontend for the TPC-C benchmark system, built with Vite, TypeScript, and Material-UI.
+
+## 🎯 Project Status
+
+### ✅ **Phase 1: New Order Transaction - COMPLETED**
+Complete end-to-end new order flow with full TPC-C compliance:
+- **Progressive form flow**: Warehouse → District → Customer → Items → Submission
+- **Dynamic order lines**: Add/remove items with real-time stock checking
+- **Smart validation**: Client-side validation with comprehensive error handling
+- **Order confirmation**: Beautiful success page with detailed order breakdown
+- **TPC-C compliance**: Proper stock management, tax calculations, and business rules
+
+### 🚀 **Next Phase: Order Management**
+Ready to implement Phase 2 - Order Status and Management:
+- Order lookup and search
+- Order details display
+- Order history
+- Status tracking
 
 ## 🛠️ Tech Stack
 
-- **Vite** - Build tool and dev server
-- **React 18** - UI library with TypeScript
-- **Material-UI** - Component library with default styling
-- **TanStack Router** - Type-safe routing
-- **TanStack Query** - Server state management
-- **TypeScript** - Type safety and developer experience
+- **React 18** with TypeScript
+- **Vite** for fast development and building
+- **TanStack Router** for type-safe routing
+- **TanStack Query** for server state management and caching
+- **Material-UI (MUI)** for components and responsive design
+- **ESLint** for code quality
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js 20.19+ (currently using v20.18.0 with warnings)
-- Rust Axum API server running on http://localhost:8080
+- Node.js 18+ 
+- npm or yarn
+- Rust backend API running on port 8080
 
-### Installation & Development
-
+### Installation
 ```bash
-# Install dependencies
 npm install
-
-# Start development server
-npm run dev
-
-# Build for production
-npm run build
-
-# Preview production build
-npm run preview
 ```
 
-The development server will start on http://localhost:3000
+### Development
+```bash
+npm run dev
+```
+Navigate to http://localhost:5173
+
+### Build
+```bash
+npm run build
+```
+
+### Type Checking
+```bash
+npm run type-check
+```
 
 ## 📁 Project Structure
 
 ```
 src/
-├── components/     # Reusable UI components
-├── hooks/         # Custom React hooks
-├── pages/         # Page components (legacy, using routes/ now)
-├── routes/        # TanStack Router route definitions
-├── services/      # API service functions
-├── types/         # TypeScript type definitions
-└── config/        # Configuration files
+├── components/         # Reusable UI components
+│   ├── WarehouseSelect.tsx      # Warehouse selection dropdown
+│   ├── DistrictSelect.tsx       # District selection (filtered by warehouse)
+│   ├── CustomerAutocomplete.tsx # Customer search with debouncing
+│   ├── ItemAutocomplete.tsx     # Item search and selection
+│   ├── SupplyWarehouseSelect.tsx # Supply warehouse override
+│   ├── OrderLines.tsx           # Dynamic order lines management
+│   └── OrderConfirmation.tsx    # Order success confirmation
+├── routes/             # Route components (TanStack Router)  
+│   ├── __root.tsx      # Root layout with navigation
+│   ├── index.tsx       # Landing/dashboard page
+│   └── new-order.tsx   # Complete new order flow
+├── hooks/              # Custom React hooks
+│   ├── useWarehouses.ts    # Warehouse data fetching
+│   ├── useDistricts.ts     # District data fetching  
+│   ├── useCustomers.ts     # Customer search with debouncing
+│   ├── useItems.ts         # Item search and stock info
+│   ├── useOrderSubmission.ts # Order submission mutation
+│   └── useDebounce.ts      # Generic debounce hook
+├── services/           # API service functions
+│   ├── warehouseService.ts  # Warehouse API calls
+│   ├── districtService.ts   # District API calls
+│   ├── customerService.ts   # Customer search API
+│   ├── itemService.ts       # Item search and stock API
+│   └── orderService.ts      # Order submission API
+├── utils/              # Utility functions
+│   └── orderValidation.ts   # Order form validation logic
+├── types/              # TypeScript type definitions
+├── config/             # Configuration files
+│   └── api.ts          # API endpoints and configuration
+└── main.tsx            # Application entry point
 ```
 
-## 🎯 Features (Planned)
+## 🎯 Key Features Implemented
 
-### Phase 1 - New Order Entry ✨
-- [x] Project setup and routing
-- [ ] Warehouse/District selection
-- [ ] Customer search and selection
-- [ ] Dynamic order lines with item search
-- [ ] Real-time price calculation
-- [ ] Form validation and submission
+### **New Order Transaction**
+- **Progressive Disclosure**: Each step unlocks the next (W→D→C→Items)
+- **Smart Search**: Debounced autocomplete for customers and items
+- **Real-time Validation**: Live stock checking and form validation
+- **Dynamic Order Lines**: Add/remove items with quantity controls
+- **Supply Warehouse Override**: Per-item warehouse selection
+- **Price Calculations**: Live totals with tax and discount application
+- **Order Confirmation**: Professional order summary with detailed breakdown
+- **Error Handling**: Comprehensive validation and user-friendly error messages
 
-### Phase 2 - Orders Management 
-- [ ] Orders list with filtering
-- [ ] Order status indicators
-- [ ] Sortable data table with pagination
-- [ ] Order detail view
+### **Technical Features**
+- **Type Safety**: Full TypeScript coverage with strict typing
+- **Performance**: React Query caching and debounced searches
+- **Responsive Design**: Works on desktop, tablet, and mobile
+- **Accessibility**: Proper ARIA labels and keyboard navigation
+- **State Management**: Clean state handling with automatic resets
 
-### Phase 3 - Advanced Features
-- [ ] Carrier assignment for deliveries
-- [ ] Dashboard with metrics
-- [ ] Advanced filtering and search
+## 🔧 Available Scripts
 
-## 🔌 API Integration
+- `npm run dev` - Start development server with HMR
+- `npm run build` - Build for production
+- `npm run preview` - Preview production build
+- `npm run type-check` - Run TypeScript type checking
+- `npm run lint` - Run ESLint
 
-The UI connects to the Rust Axum TPC-C API server:
-- Base URL: `http://localhost:8080` (configurable via `VITE_API_BASE_URL`)
-- Uses existing endpoints: `/new-order`, `/warehouses`, etc.
-- New endpoints needed: `/items`, `/customers`, `/orders`, `/districts`
+## 🌍 Environment Variables
 
-## 🧪 Development
+Create a `.env` file for local configuration:
 
-### Current Status
-- ✅ Project scaffolded with Vite + React + TypeScript
-- ✅ Material-UI theme and components installed
-- ✅ TanStack Router configured with basic routes
-- ✅ TanStack Query setup for API state management
-- ✅ Basic navigation and layout
-- ✅ Type definitions for TPC-C entities
+```env
+VITE_API_BASE_URL=http://localhost:8080
+```
 
-### Next Steps
-1. Implement warehouses/districts API calls
-2. Create customer search functionality  
-3. Build dynamic order line components
-4. Add form validation and submission
-5. Connect to existing `/new-order` API endpoint
+## 🚀 Testing the New Order Flow
 
-### Development Tools
-- React Query Devtools: Available in development
-- TanStack Router Devtools: Available in development
-- TypeScript strict mode enabled
-- ESLint configured for code quality
+1. **Start the Rust backend** (port 8080)
+2. **Start the React dev server** (`npm run dev`)
+3. **Navigate to `/new-order`**
+4. **Complete the flow**:
+   - Select warehouse and district
+   - Search and select a customer
+   - Add items with quantities
+   - Review and submit order
+   - See confirmation page
+
+## 📊 TPC-C Business Rules Implemented
+
+- **Stock Management**: Allows over-stock orders with TPC-C overflow handling (+91 units)
+- **Order Limits**: Maximum 99 items per line, 15 lines per order
+- **Tax Calculations**: Warehouse and district tax application
+- **Remote Orders**: Cross-warehouse order tracking
+- **Brand/Generic**: Proper item classification logic
+
+## 🎯 Next Steps
+
+### **Phase 2: Order Management** (Ready to Implement)
+- Order status lookup and search
+- Order details and history display
+- Order status tracking and updates
+
+### **Phase 3: Payment Processing**
+- Customer payment interface
+- Payment history and balance management
+
+### **Phase 4: Delivery Management**  
+- Delivery processing workflow
+- Batch delivery operations
+
+### **Phase 5: Reporting & Analytics**
+- Stock level reports
+- Performance dashboards
+- TPC-C metrics visualization
