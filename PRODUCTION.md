@@ -6,26 +6,38 @@ This guide explains how to build and deploy the TPC-C playground for production 
 
 ### Automatic Mode Detection
 
-**Backend (Rust/Axum)**: Detects mode based on presence of built frontend
-- **Production Mode** (`ui-vite-react/dist/` exists): Serves static files + API with `/api/` prefix, no CORS
-- **Development Mode** (`ui-vite-react/dist/` missing): API only with CORS enabled
+**Backend (Rust/Axum)**: Detects serving mode based on build type and environment
+- **Release builds** (`cargo run --release`): Serves frontend + API (if `dist/` exists)
+- **Debug builds** (`cargo run`): API-only mode with CORS enabled
+- **Override**: Set `SERVE_FRONTEND=true` to force frontend serving in debug builds
 
 **Frontend (React/Vite)**: Detects mode based on the port it's accessed from
 - **Development** (port 5173/3000): Uses `http://localhost:8080/orders` (cross-origin)
 - **Production** (port 8080/80/443): Uses `/api/orders` (same-origin relative paths)
 
-### File Structure Trigger
+### Mode Control
+
+```bash
+# Debug build - API only (even if dist/ exists)
+cargo run
+
+# Debug build - Force frontend serving
+SERVE_FRONTEND=true cargo run
+
+# Release build - Combined frontend + API (if dist/ exists)
+cargo run --release
+```
+
+### File Requirements
 
 ```
 tccp-playground/
 ├── rust-axum-rest-api/
-│   └── cargo run                 # Auto-detects ../ui-vite-react/dist/
+│   └── cargo run [--release]    # Build mode determines serving behavior
 └── ui-vite-react/
-    ├── src/                     # Source code
-    └── dist/                    # Built assets (triggers production mode)
+    ├── src/                     # Source code  
+    └── dist/                    # Required for frontend serving (any build mode)
 ```
-
-The presence of the `dist/` directory switches both backend routing and frontend API detection.
 
 ## Quick Start
 
@@ -143,13 +155,17 @@ CMD ["./rust-axum-rest-api"]
 ### 3. Development vs Production
 
 ```bash
-# Development (two servers)
-cd rust-axum-rest-api && cargo run &  # Backend API at :8080/orders
-cd ui-vite-react && npm run dev &     # Frontend at :5173 → calls localhost:8080
+# Development (two servers) - Recommended
+cd rust-axum-rest-api && cargo run &     # Debug build: API-only at :8080/orders
+cd ui-vite-react && npm run dev &        # Frontend dev server at :5173 → calls localhost:8080
 
-# Production (single server)  
-cd ui-vite-react && npm run build     # Creates dist/ directory
-cd ../rust-axum-rest-api && cargo run # Combined at :8080 → frontend calls /api/orders
+# Production (single server)
+cd ui-vite-react && npm run build        # Creates dist/ directory
+cd ../rust-axum-rest-api && cargo run --release  # Release build: combined at :8080
+
+# Alternative: Debug build with frontend serving (for testing production setup)
+cd ui-vite-react && npm run build        # Creates dist/ directory
+cd ../rust-axum-rest-api && SERVE_FRONTEND=true cargo run  # Force serving in debug mode
 ```
 
 ## Route Structure

@@ -37,19 +37,37 @@ pub async fn create_app(pool: Pool<Postgres>) -> Router {
         .route("/delivery", post(delivery))
         .with_state(pool);
 
-    // Check if we have a built frontend to serve
+    // Determine serving mode based on environment variable or debug/release build
+    let serve_frontend = std::env::var("SERVE_FRONTEND")
+        .map(|v| v == "true" || v == "1")
+        .unwrap_or_else(|_| {
+            // Default: serve frontend only in release builds
+            !cfg!(debug_assertions)
+        });
+
     let frontend_dist = std::path::Path::new("../ui-vite-react/dist");
-    
-    if frontend_dist.exists() {
-        // Production mode: serve built frontend and API
+
+    if serve_frontend && frontend_dist.exists() {
+        // Frontend serving mode: serve built frontend and API
         // No CORS needed since frontend and API are served from same origin
+        tracing::info!("🚀 Starting in COMBINED mode (frontend + API)");
+        tracing::info!("   Frontend: http://localhost:8080/");
+        tracing::info!("   API: http://localhost:8080/api/");
         Router::new()
             .nest("/api", api_routes)
             .nest_service("/assets", ServeDir::new(frontend_dist.join("assets")))
             .route_service("/", ServeFile::new(frontend_dist.join("index.html")))
             .fallback_service(ServeFile::new(frontend_dist.join("index.html")))
     } else {
-        // Development mode: API only with CORS for cross-origin requests from Vite dev server
+        // API-only mode: API with CORS for cross-origin requests from Vite dev server
+        tracing::info!("🔧 Starting in API-ONLY mode");
+        tracing::info!("   API: http://localhost:8080/");
+        tracing::info!("   Frontend: Start with 'cd ../ui-vite-react && npm run dev'");
+        if !frontend_dist.exists() {
+            tracing::info!(
+                "   Note: No built frontend found. Run 'npm run build' to enable combined mode."
+            );
+        }
         api_routes.layer(cors)
     }
 }
