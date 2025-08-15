@@ -1,7 +1,11 @@
-use axum::{extract::{Query, State}, http::StatusCode, Json};
+use axum::{
+    extract::{Query, State},
+    http::StatusCode,
+    Json,
+};
+use chrono::NaiveDateTime;
 use serde::Deserialize;
 use sqlx::{Pool, Postgres};
-use chrono::NaiveDateTime;
 
 use crate::models::Customer;
 
@@ -19,7 +23,7 @@ pub async fn search_customers(
 ) -> Result<Json<Vec<Customer>>, StatusCode> {
     let search_term = params.search.unwrap_or_default();
     let limit = params.limit.unwrap_or(10).min(50) as i64; // Default 10, max 50 for performance, cast to i64
-    
+
     // Define a temporary struct that matches the database structure
     #[derive(sqlx::FromRow)]
     struct CustomerRow {

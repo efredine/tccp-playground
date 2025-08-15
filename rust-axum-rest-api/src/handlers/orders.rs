@@ -16,18 +16,18 @@ pub struct OrdersQuery {
     pub district_id: Option<i16>,
     pub customer_id: Option<i32>,
     pub order_id: Option<i32>,
-    
+
     // Date range filtering
     pub from_date: Option<String>, // ISO date string
     pub to_date: Option<String>,   // ISO date string
-    
+
     // Pagination
     pub page: Option<u32>,
     pub per_page: Option<u32>,
-    
+
     // Sorting
-    pub sort_by: Option<String>,   // "order_id", "entry_date", "customer_last", etc.
-    pub sort_dir: Option<String>,  // "asc" or "desc"
+    pub sort_by: Option<String>, // "order_id", "entry_date", "customer_last", etc.
+    pub sort_dir: Option<String>, // "asc" or "desc"
 }
 
 // Response structures for order listing
@@ -50,15 +50,15 @@ pub struct OrderSummary {
     pub o_carrier_id: Option<i16>,
     pub o_ol_cnt: Option<i16>,
     pub o_all_local: Option<i16>,
-    
+
     // Customer info for display
     pub customer_first: Option<String>,
     pub customer_middle: Option<String>,
     pub customer_last: Option<String>,
-    
+
     // Order total (calculated from order lines)
     pub total_amount: Option<BigDecimal>,
-    
+
     // Status indicators
     pub is_delivered: bool,
     pub line_count: i64,
@@ -73,11 +73,11 @@ pub async fn list_orders(
     let page = params.page.unwrap_or(1);
     let per_page = params.per_page.unwrap_or(20).min(100); // Cap at 100 per page
     let offset = (page - 1) * per_page;
-    
+
     // Set defaults for sorting
     let sort_by = params.sort_by.as_deref().unwrap_or("o_entry_d");
     let _sort_dir = params.sort_dir.as_deref().unwrap_or("desc");
-    
+
     // For this initial version, we'll do basic pagination without dynamic filters
     // TODO: Add dynamic filtering in a future enhancement
     let _sort_column = match sort_by {
@@ -89,33 +89,20 @@ pub async fn list_orders(
         "carrier_id" => "o.o_carrier_id",
         _ => "o.o_entry_d", // default fallback
     };
-    
+
     // Get the total count
-    let total_count = sqlx::query_scalar!(
-        "SELECT COUNT(*) FROM orders1"
-    )
-    .fetch_one(&pool)
-    .await
-    .map_err(|e| {
-        eprintln!("Database error counting orders: {}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?
-    .unwrap_or(0);
-    
-    // For this initial implementation, let's do a simple query without dynamic filtering
-    // We can enhance this later with proper parameter binding
+    let total_count = sqlx::query_scalar!("SELECT COUNT(*) FROM orders1")
+        .fetch_one(&pool)
+        .await
+        .map_err(|e| {
+            eprintln!("Database error counting orders: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+        .unwrap_or(0);
+
+    // Optimized approach: First get the orders we need, then calculate totals only for those
     let orders_rows = sqlx::query!(
         r#"
-        WITH order_totals AS (
-            SELECT 
-                ol_w_id, 
-                ol_d_id, 
-                ol_o_id,
-                SUM(ol_amount) as total_amount,
-                COUNT(*) as line_count
-            FROM order_line1 
-            GROUP BY ol_w_id, ol_d_id, ol_o_id
-        )
         SELECT 
             o.o_id,
             o.o_w_id,
@@ -128,15 +115,12 @@ pub async fn list_orders(
             c.c_first,
             c.c_middle,
             c.c_last,
-            COALESCE(ot.total_amount, 0) as total_amount,
             CASE 
                 WHEN o.o_carrier_id IS NOT NULL THEN true 
                 ELSE false 
-            END as is_delivered,
-            COALESCE(ot.line_count, 0) as line_count
+            END as is_delivered
         FROM orders1 o
         LEFT JOIN customer1 c ON o.o_w_id = c.c_w_id AND o.o_d_id = c.c_d_id AND o.o_c_id = c.c_id
-        LEFT JOIN order_totals ot ON o.o_w_id = ot.ol_w_id AND o.o_d_id = ot.ol_d_id AND o.o_id = ot.ol_o_id
         ORDER BY o.o_entry_d DESC, o.o_w_id, o.o_d_id, o.o_id
         LIMIT $1 OFFSET $2
         "#,
@@ -149,9 +133,9 @@ pub async fn list_orders(
         eprintln!("Database error fetching orders: {}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
-    
-    // Convert to OrderSummary structs
-    let orders: Vec<OrderSummary> = orders_rows
+
+    // If we have orders, calculate totals efficiently for only these orders
+    let mut orders: Vec<OrderSummary> = orders_rows
         .into_iter()
         .map(|row| OrderSummary {
             o_id: row.o_id,
@@ -165,14 +149,74 @@ pub async fn list_orders(
             customer_first: row.c_first,
             customer_middle: row.c_middle,
             customer_last: row.c_last,
-            total_amount: row.total_amount,
+            total_amount: None, // Will be filled in below
             is_delivered: row.is_delivered.unwrap_or(false),
-            line_count: row.line_count.unwrap_or(0),
+            line_count: 0, // Will be filled in below
         })
         .collect();
-    
+
+    // Calculate totals for only the orders we fetched (much more efficient)
+    if !orders.is_empty() {
+        // Build the condition for only the orders we need
+        let order_conditions: Vec<String> = orders
+            .iter()
+            .map(|o| {
+                format!(
+                    "(ol_w_id = {} AND ol_d_id = {} AND ol_o_id = {})",
+                    o.o_w_id, o.o_d_id, o.o_id
+                )
+            })
+            .collect();
+
+        if !order_conditions.is_empty() {
+            let totals_query = format!(
+                r#"
+                SELECT 
+                    ol_w_id, 
+                    ol_d_id, 
+                    ol_o_id,
+                    SUM(ol_amount) as total_amount,
+                    COUNT(*) as line_count
+                FROM order_line1 
+                WHERE {}
+                GROUP BY ol_w_id, ol_d_id, ol_o_id
+                "#,
+                order_conditions.join(" OR ")
+            );
+
+            let totals_rows = sqlx::query_as::<
+                _,
+                (i16, i16, i32, Option<bigdecimal::BigDecimal>, i64),
+            >(&totals_query)
+            .fetch_all(&pool)
+            .await
+            .map_err(|e| {
+                eprintln!("Database error fetching order totals: {}", e);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?;
+
+            // Map totals back to orders efficiently
+            use std::collections::HashMap;
+            let mut totals_map: HashMap<(i16, i16, i32), (Option<bigdecimal::BigDecimal>, i64)> =
+                HashMap::new();
+            for (w_id, d_id, o_id, total, count) in totals_rows {
+                totals_map.insert((w_id, d_id, o_id), (total, count));
+            }
+
+            // Update orders with their totals
+            for order in &mut orders {
+                if let Some((total_amount, line_count)) =
+                    totals_map.get(&(order.o_w_id, order.o_d_id, order.o_id))
+                {
+                    order.total_amount = total_amount.clone();
+                    order.line_count = *line_count;
+                }
+            }
+        }
+    }
+
     let total_pages = ((total_count as f64) / (per_page as f64)).ceil() as u32;
-    
+
     Ok(Json(OrdersListResponse {
         orders,
         total_count,

@@ -1,7 +1,10 @@
-use axum::{extract::{Query, State}, http::StatusCode, Json};
+use axum::{
+    extract::{Query, State},
+    http::StatusCode,
+    Json,
+};
 use serde::Deserialize;
 use sqlx::{Pool, Postgres};
-
 
 use crate::models::Item;
 
@@ -18,7 +21,7 @@ pub async fn search_items(
 ) -> Result<Json<Vec<Item>>, StatusCode> {
     let search_term = params.search.unwrap_or_default();
     let limit = params.limit.unwrap_or(20).min(100) as i64; // Default 20, max 100 for performance
-    
+
     // Define a temporary struct that matches the database structure
     #[derive(sqlx::FromRow)]
     struct ItemRow {

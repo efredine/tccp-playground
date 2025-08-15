@@ -3,7 +3,7 @@ use axum::{
     Router,
 };
 use sqlx::{Pool, Postgres};
-use tower_http::cors::{CorsLayer, Any};
+use tower_http::cors::{Any, CorsLayer};
 
 pub mod handlers;
 pub mod models;
