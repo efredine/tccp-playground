@@ -38,9 +38,6 @@ export function CustomerAutocomplete({
     inputValue
   );
 
-  // Debug logging (can be removed in production)
-  // console.log({ inputValue, isSearching, customersCount: customers?.length || 0 });
-
   const options = customers || [];
 
   if (isError) {
@@ -65,7 +62,7 @@ export function CustomerAutocomplete({
       }}
       options={options}
       getOptionLabel={(option) => 
-        `${option.c_first || ''} ${option.c_middle || ''} ${option.c_last || ''} (ID: ${option.c_id})`.trim()
+        `${option.c_first || ''} ${option.c_last || ''} (ID: ${option.c_id})`.trim()
       }
       isOptionEqualToValue={(option, val) => option.c_id === val.c_id}
       loading={isSearching}
@@ -92,7 +89,7 @@ export function CustomerAutocomplete({
         <Box component="li" {...props} key={option.c_id}>
           <Box>
             <Typography variant="body2" fontWeight="medium">
-              {option.c_first} {option.c_middle} {option.c_last}
+              {option.c_first} {option.c_last}
             </Typography>
             <Typography variant="caption" color="text.secondary">
               ID: {option.c_id} | {option.c_city}, {option.c_state}

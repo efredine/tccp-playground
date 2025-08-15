@@ -185,7 +185,7 @@ function NewOrderPage() {
               value={selectedCustomer}
               onChange={setSelectedCustomer}
               required
-              helperText="Search for a customer by name or ID"
+              helperText="Search for a customer by first or last name"
             />
           </Grid>
         </Grid>
