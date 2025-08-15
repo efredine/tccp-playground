@@ -216,12 +216,6 @@ If you get 404 errors when refreshing frontend routes like `/new-order`:
 
 In production mode, CORS is automatically handled since frontend and API are served from the same origin.
 
-### Router nesting error
-
-If you get `Nesting at the root is no longer supported. Use fallback_service instead.`:
-- This was fixed by using `fallback_service` instead of `nest_service` for static file serving
-- The fix is already implemented in the current version
-
 ### API environment detection
 
 The frontend automatically detects whether it's running in development or production:
