@@ -84,113 +84,6 @@ pub struct OrderSummary {
     pub line_count: i64,
 }
 
-// Helper function to add WHERE conditions to any QueryBuilder
-fn add_filter_conditions(query: &mut QueryBuilder<Postgres>, params: &OrdersQuery) -> bool {
-    let mut has_conditions = false;
-
-    if let Some(warehouse_id) = params.warehouse_id {
-        if !has_conditions {
-            query.push(" WHERE ");
-            has_conditions = true;
-        } else {
-            query.push(" AND ");
-        }
-        query.push("o.o_w_id = ");
-        query.push_bind(warehouse_id);
-    }
-
-    if let Some(district_id) = params.district_id {
-        if !has_conditions {
-            query.push(" WHERE ");
-            has_conditions = true;
-        } else {
-            query.push(" AND ");
-        }
-        query.push("o.o_d_id = ");
-        query.push_bind(district_id);
-    }
-
-    if let Some(customer_id) = params.customer_id {
-        if !has_conditions {
-            query.push(" WHERE ");
-            has_conditions = true;
-        } else {
-            query.push(" AND ");
-        }
-        query.push("o.o_c_id = ");
-        query.push_bind(customer_id);
-    }
-
-    if let Some(order_id) = params.order_id {
-        if !has_conditions {
-            query.push(" WHERE ");
-            has_conditions = true;
-        } else {
-            query.push(" AND ");
-        }
-        query.push("o.o_id = ");
-        query.push_bind(order_id);
-    }
-
-    // Parse and validate date strings properly to prevent SQL injection
-    if let Some(from_date) = &params.from_date {
-        // Try to parse the date string - this validates format and prevents injection
-        if let Ok(parsed_date) =
-            chrono::NaiveDateTime::parse_from_str(from_date, "%Y-%m-%d %H:%M:%S")
-        {
-            if !has_conditions {
-                query.push(" WHERE ");
-                has_conditions = true;
-            } else {
-                query.push(" AND ");
-            }
-            query.push("o.o_entry_d >= ");
-            query.push_bind(parsed_date);
-        } else if let Ok(parsed_date) = chrono::NaiveDate::parse_from_str(from_date, "%Y-%m-%d") {
-            // Handle date-only format
-            let datetime = parsed_date.and_hms_opt(0, 0, 0).unwrap_or_default();
-            if !has_conditions {
-                query.push(" WHERE ");
-                has_conditions = true;
-            } else {
-                query.push(" AND ");
-            }
-            query.push("o.o_entry_d >= ");
-            query.push_bind(datetime);
-        }
-        // Invalid date format is silently ignored (no filter applied)
-    }
-
-    if let Some(to_date) = &params.to_date {
-        // Try to parse the date string - this validates format and prevents injection
-        if let Ok(parsed_date) = chrono::NaiveDateTime::parse_from_str(to_date, "%Y-%m-%d %H:%M:%S")
-        {
-            if !has_conditions {
-                query.push(" WHERE ");
-                has_conditions = true;
-            } else {
-                query.push(" AND ");
-            }
-            query.push("o.o_entry_d <= ");
-            query.push_bind(parsed_date);
-        } else if let Ok(parsed_date) = chrono::NaiveDate::parse_from_str(to_date, "%Y-%m-%d") {
-            // Handle date-only format - set to end of day
-            let datetime = parsed_date.and_hms_opt(23, 59, 59).unwrap_or_default();
-            if !has_conditions {
-                query.push(" WHERE ");
-                has_conditions = true;
-            } else {
-                query.push(" AND ");
-            }
-            query.push("o.o_entry_d <= ");
-            query.push_bind(datetime);
-        }
-        // Invalid date format is silently ignored (no filter applied)
-    }
-
-    has_conditions
-}
-
 // Handler function for listing orders
 pub async fn list_orders(
     State(pool): State<Pool<Postgres>>,
@@ -384,4 +277,81 @@ pub async fn list_orders(
         per_page,
         total_pages,
     }))
+}
+
+// Helper function to add WHERE conditions to any QueryBuilder
+fn add_filter_conditions(query: &mut QueryBuilder<Postgres>, params: &OrdersQuery) -> bool {
+    let mut has_conditions = false;
+
+    if let Some(warehouse_id) = params.warehouse_id {
+        add_condition_separator(query, &mut has_conditions);
+        query.push("o.o_w_id = ");
+        query.push_bind(warehouse_id);
+    }
+
+    if let Some(district_id) = params.district_id {
+        add_condition_separator(query, &mut has_conditions);
+        query.push("o.o_d_id = ");
+        query.push_bind(district_id);
+    }
+
+    if let Some(customer_id) = params.customer_id {
+        add_condition_separator(query, &mut has_conditions);
+        query.push("o.o_c_id = ");
+        query.push_bind(customer_id);
+    }
+
+    if let Some(order_id) = params.order_id {
+        add_condition_separator(query, &mut has_conditions);
+        query.push("o.o_id = ");
+        query.push_bind(order_id);
+    }
+
+    // Parse and validate date strings properly to prevent SQL injection
+    if let Some(from_date) = &params.from_date {
+        // Try to parse the date string - this validates format and prevents injection
+        if let Ok(parsed_date) =
+            chrono::NaiveDateTime::parse_from_str(from_date, "%Y-%m-%d %H:%M:%S")
+        {
+            add_condition_separator(query, &mut has_conditions);
+            query.push("o.o_entry_d >= ");
+            query.push_bind(parsed_date);
+        } else if let Ok(parsed_date) = chrono::NaiveDate::parse_from_str(from_date, "%Y-%m-%d") {
+            // Handle date-only format
+            let datetime = parsed_date.and_hms_opt(0, 0, 0).unwrap_or_default();
+            add_condition_separator(query, &mut has_conditions);
+            query.push("o.o_entry_d >= ");
+            query.push_bind(datetime);
+        }
+        // Invalid date format is silently ignored (no filter applied)
+    }
+
+    if let Some(to_date) = &params.to_date {
+        // Try to parse the date string - this validates format and prevents injection
+        if let Ok(parsed_date) = chrono::NaiveDateTime::parse_from_str(to_date, "%Y-%m-%d %H:%M:%S")
+        {
+            add_condition_separator(query, &mut has_conditions);
+            query.push("o.o_entry_d <= ");
+            query.push_bind(parsed_date);
+        } else if let Ok(parsed_date) = chrono::NaiveDate::parse_from_str(to_date, "%Y-%m-%d") {
+            // Handle date-only format - set to end of day
+            let datetime = parsed_date.and_hms_opt(23, 59, 59).unwrap_or_default();
+            add_condition_separator(query, &mut has_conditions);
+            query.push("o.o_entry_d <= ");
+            query.push_bind(datetime);
+        }
+        // Invalid date format is silently ignored (no filter applied)
+    }
+
+    has_conditions
+}
+
+// Helper function to add WHERE/AND separator to query
+fn add_condition_separator(query: &mut QueryBuilder<Postgres>, has_conditions: &mut bool) {
+    if !*has_conditions {
+        query.push(" WHERE ");
+        *has_conditions = true;
+    } else {
+        query.push(" AND ");
+    }
 }
