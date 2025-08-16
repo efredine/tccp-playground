@@ -6,7 +6,8 @@ use axum::{
 use bigdecimal::BigDecimal;
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
-use sqlx::{Pool, Postgres};
+use sqlx::{Pool, Postgres, QueryBuilder};
+use std::collections::HashMap;
 
 // Enum types for type-safe query parameters
 #[derive(Deserialize, Debug, Clone, Copy)]
@@ -83,6 +84,113 @@ pub struct OrderSummary {
     pub line_count: i64,
 }
 
+// Helper function to add WHERE conditions to any QueryBuilder
+fn add_filter_conditions(query: &mut QueryBuilder<Postgres>, params: &OrdersQuery) -> bool {
+    let mut has_conditions = false;
+
+    if let Some(warehouse_id) = params.warehouse_id {
+        if !has_conditions {
+            query.push(" WHERE ");
+            has_conditions = true;
+        } else {
+            query.push(" AND ");
+        }
+        query.push("o.o_w_id = ");
+        query.push_bind(warehouse_id);
+    }
+
+    if let Some(district_id) = params.district_id {
+        if !has_conditions {
+            query.push(" WHERE ");
+            has_conditions = true;
+        } else {
+            query.push(" AND ");
+        }
+        query.push("o.o_d_id = ");
+        query.push_bind(district_id);
+    }
+
+    if let Some(customer_id) = params.customer_id {
+        if !has_conditions {
+            query.push(" WHERE ");
+            has_conditions = true;
+        } else {
+            query.push(" AND ");
+        }
+        query.push("o.o_c_id = ");
+        query.push_bind(customer_id);
+    }
+
+    if let Some(order_id) = params.order_id {
+        if !has_conditions {
+            query.push(" WHERE ");
+            has_conditions = true;
+        } else {
+            query.push(" AND ");
+        }
+        query.push("o.o_id = ");
+        query.push_bind(order_id);
+    }
+
+    // Parse and validate date strings properly to prevent SQL injection
+    if let Some(from_date) = &params.from_date {
+        // Try to parse the date string - this validates format and prevents injection
+        if let Ok(parsed_date) =
+            chrono::NaiveDateTime::parse_from_str(from_date, "%Y-%m-%d %H:%M:%S")
+        {
+            if !has_conditions {
+                query.push(" WHERE ");
+                has_conditions = true;
+            } else {
+                query.push(" AND ");
+            }
+            query.push("o.o_entry_d >= ");
+            query.push_bind(parsed_date);
+        } else if let Ok(parsed_date) = chrono::NaiveDate::parse_from_str(from_date, "%Y-%m-%d") {
+            // Handle date-only format
+            let datetime = parsed_date.and_hms_opt(0, 0, 0).unwrap_or_default();
+            if !has_conditions {
+                query.push(" WHERE ");
+                has_conditions = true;
+            } else {
+                query.push(" AND ");
+            }
+            query.push("o.o_entry_d >= ");
+            query.push_bind(datetime);
+        }
+        // Invalid date format is silently ignored (no filter applied)
+    }
+
+    if let Some(to_date) = &params.to_date {
+        // Try to parse the date string - this validates format and prevents injection
+        if let Ok(parsed_date) = chrono::NaiveDateTime::parse_from_str(to_date, "%Y-%m-%d %H:%M:%S")
+        {
+            if !has_conditions {
+                query.push(" WHERE ");
+                has_conditions = true;
+            } else {
+                query.push(" AND ");
+            }
+            query.push("o.o_entry_d <= ");
+            query.push_bind(parsed_date);
+        } else if let Ok(parsed_date) = chrono::NaiveDate::parse_from_str(to_date, "%Y-%m-%d") {
+            // Handle date-only format - set to end of day
+            let datetime = parsed_date.and_hms_opt(23, 59, 59).unwrap_or_default();
+            if !has_conditions {
+                query.push(" WHERE ");
+                has_conditions = true;
+            } else {
+                query.push(" AND ");
+            }
+            query.push("o.o_entry_d <= ");
+            query.push_bind(datetime);
+        }
+        // Invalid date format is silently ignored (no filter applied)
+    }
+
+    has_conditions
+}
+
 // Handler function for listing orders
 pub async fn list_orders(
     State(pool): State<Pool<Postgres>>,
@@ -113,59 +221,16 @@ pub async fn list_orders(
         SortDirection::Desc => "DESC",
     };
 
-    // Build WHERE conditions based on filters (using direct values for simplicity)
-    // Input is already validated through Serde deserialization
-    let mut where_conditions = Vec::new();
-
-    if let Some(warehouse_id) = params.warehouse_id {
-        where_conditions.push(format!("o.o_w_id = {}", warehouse_id));
-    }
-
-    if let Some(district_id) = params.district_id {
-        where_conditions.push(format!("o.o_d_id = {}", district_id));
-    }
-
-    if let Some(customer_id) = params.customer_id {
-        where_conditions.push(format!("o.o_c_id = {}", customer_id));
-    }
-
-    if let Some(order_id) = params.order_id {
-        where_conditions.push(format!("o.o_id = {}", order_id));
-    }
-
-    if let Some(from_date) = &params.from_date {
-        // Validate date format to prevent SQL injection
-        if from_date
-            .chars()
-            .all(|c| c.is_ascii_digit() || c == '-' || c == ' ' || c == ':' || c == 'T')
-        {
-            where_conditions.push(format!("o.o_entry_d >= '{}'", from_date));
-        }
-    }
-
-    if let Some(to_date) = &params.to_date {
-        // Validate date format to prevent SQL injection
-        if to_date
-            .chars()
-            .all(|c| c.is_ascii_digit() || c == '-' || c == ' ' || c == ':' || c == 'T')
-        {
-            where_conditions.push(format!("o.o_entry_d <= '{}'", to_date));
-        }
-    }
-
-    let where_clause = if where_conditions.is_empty() {
-        String::new()
-    } else {
-        format!("WHERE {}", where_conditions.join(" AND "))
-    };
-
-    // Get the total count with the same filters
-    let count_query = format!(
-        "SELECT COUNT(*) FROM orders1 o LEFT JOIN customer1 c ON o.o_w_id = c.c_w_id AND o.o_d_id = c.c_d_id AND o.o_c_id = c.c_id {}",
-        where_clause
+    // Build secure count query with parameterized conditions
+    let mut count_query = QueryBuilder::new(
+        "SELECT COUNT(*) FROM orders1 o LEFT JOIN customer1 c ON o.o_w_id = c.c_w_id AND o.o_d_id = c.c_d_id AND o.o_c_id = c.c_id"
     );
 
-    let total_count_result = sqlx::query_scalar::<_, i64>(&count_query)
+    // Add WHERE conditions using the shared helper function
+    add_filter_conditions(&mut count_query, &params);
+
+    let total_count_result = count_query
+        .build_query_scalar::<i64>()
         .fetch_one(&pool)
         .await
         .map_err(|e| {
@@ -175,8 +240,8 @@ pub async fn list_orders(
 
     let total_count = total_count_result;
 
-    // Build dynamic query with filtering and sorting
-    let query = format!(
+    // Build secure main query with parameterized conditions
+    let mut main_query = QueryBuilder::new(
         r#"
         SELECT 
             o.o_id,
@@ -195,17 +260,24 @@ pub async fn list_orders(
                 ELSE false 
             END as is_delivered
         FROM orders1 o
-        LEFT JOIN customer1 c ON o.o_w_id = c.c_w_id AND o.o_d_id = c.c_d_id AND o.o_c_id = c.c_id
-        {}
-        ORDER BY {} {}, o.o_w_id, o.o_d_id, o.o_id
-        LIMIT $1 OFFSET $2
-        "#,
-        where_clause, sort_column, sort_direction
+        LEFT JOIN customer1 c ON o.o_w_id = c.c_w_id AND o.o_d_id = c.c_d_id AND o.o_c_id = c.c_id"#,
     );
 
-    let orders_rows = sqlx::query_as::<
-        _,
-        (
+    // Add the same WHERE conditions using the shared helper function
+    add_filter_conditions(&mut main_query, &params);
+
+    // Add ORDER BY clause - sort_column and sort_direction are safe (from enum matching)
+    main_query.push(" ORDER BY ");
+    main_query.push(sort_column);
+    main_query.push(" ");
+    main_query.push(sort_direction);
+    main_query.push(", o.o_w_id, o.o_d_id, o.o_id LIMIT ");
+    main_query.push_bind(per_page as i64);
+    main_query.push(" OFFSET ");
+    main_query.push_bind(offset as i64);
+
+    let orders_rows = main_query
+        .build_query_as::<(
             i32,                           // o_id
             i16,                           // o_w_id
             i16,                           // o_d_id
@@ -218,16 +290,13 @@ pub async fn list_orders(
             Option<String>,                // c_middle
             Option<String>,                // c_last
             Option<bool>,                  // is_delivered
-        ),
-    >(&query)
-    .bind(per_page as i64)
-    .bind(offset as i64)
-    .fetch_all(&pool)
-    .await
-    .map_err(|e| {
-        eprintln!("Database error fetching orders: {}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
+        )>()
+        .fetch_all(&pool)
+        .await
+        .map_err(|e| {
+            eprintln!("Database error fetching orders: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
 
     // If we have orders, calculate totals efficiently for only these orders
     let mut orders: Vec<OrderSummary> = orders_rows
@@ -252,37 +321,35 @@ pub async fn list_orders(
 
     // Calculate totals for only the orders we fetched (much more efficient)
     if !orders.is_empty() {
-        // Build the condition for only the orders we need
-        let order_conditions: Vec<String> = orders
-            .iter()
-            .map(|o| {
-                format!(
-                    "(ol_w_id = {} AND ol_d_id = {} AND ol_o_id = {})",
-                    o.o_w_id, o.o_d_id, o.o_id
-                )
-            })
-            .collect();
+        // Build secure totals query with parameterized conditions
+        let mut totals_query = QueryBuilder::new(
+            r#"
+            SELECT 
+                ol_w_id, 
+                ol_d_id, 
+                ol_o_id,
+                SUM(ol_amount) as total_amount,
+                COUNT(*) as line_count
+            FROM order_line1 
+            WHERE "#,
+        );
 
-        if !order_conditions.is_empty() {
-            let totals_query = format!(
-                r#"
-                SELECT 
-                    ol_w_id, 
-                    ol_d_id, 
-                    ol_o_id,
-                    SUM(ol_amount) as total_amount,
-                    COUNT(*) as line_count
-                FROM order_line1 
-                WHERE {}
-                GROUP BY ol_w_id, ol_d_id, ol_o_id
-                "#,
-                order_conditions.join(" OR ")
-            );
+        // Add conditions for each order using parameterized queries
+        let mut separated = totals_query.separated(" OR ");
+        for order in &orders {
+            separated.push("(ol_w_id = ");
+            separated.push_bind_unseparated(order.o_w_id);
+            separated.push_unseparated(" AND ol_d_id = ");
+            separated.push_bind_unseparated(order.o_d_id);
+            separated.push_unseparated(" AND ol_o_id = ");
+            separated.push_bind_unseparated(order.o_id);
+            separated.push_unseparated(")");
+        }
 
-            let totals_rows = sqlx::query_as::<
-                _,
-                (i16, i16, i32, Option<bigdecimal::BigDecimal>, i64),
-            >(&totals_query)
+        totals_query.push(" GROUP BY ol_w_id, ol_d_id, ol_o_id");
+
+        let totals_rows = totals_query
+            .build_query_as::<(i16, i16, i32, Option<bigdecimal::BigDecimal>, i64)>()
             .fetch_all(&pool)
             .await
             .map_err(|e| {
@@ -290,22 +357,20 @@ pub async fn list_orders(
                 StatusCode::INTERNAL_SERVER_ERROR
             })?;
 
-            // Map totals back to orders efficiently
-            use std::collections::HashMap;
-            let mut totals_map: HashMap<(i16, i16, i32), (Option<bigdecimal::BigDecimal>, i64)> =
-                HashMap::new();
-            for (w_id, d_id, o_id, total, count) in totals_rows {
-                totals_map.insert((w_id, d_id, o_id), (total, count));
-            }
+        // Map totals back to orders efficiently
+        let mut totals_map: HashMap<(i16, i16, i32), (Option<bigdecimal::BigDecimal>, i64)> =
+            HashMap::new();
+        for (w_id, d_id, o_id, total, count) in totals_rows {
+            totals_map.insert((w_id, d_id, o_id), (total, count));
+        }
 
-            // Update orders with their totals
-            for order in &mut orders {
-                if let Some((total_amount, line_count)) =
-                    totals_map.get(&(order.o_w_id, order.o_d_id, order.o_id))
-                {
-                    order.total_amount = total_amount.clone();
-                    order.line_count = *line_count;
-                }
+        // Update orders with their totals
+        for order in &mut orders {
+            if let Some((total_amount, line_count)) =
+                totals_map.get(&(order.o_w_id, order.o_d_id, order.o_id))
+            {
+                order.total_amount = total_amount.clone();
+                order.line_count = *line_count;
             }
         }
     }
