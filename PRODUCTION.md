@@ -31,7 +31,7 @@ cargo run --release
 ### File Requirements
 
 ```
-tccp-playground/
+tpcc-playground/
 ├── rust-axum-rest-api/
 │   └── cargo run [--release]    # Build mode determines serving behavior
 └── ui-vite-react/
